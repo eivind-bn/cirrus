@@ -1,6 +1,7 @@
 package io
 
 import scala.collection.{AbstractIterator, Factory, IterableFactory, mutable}
+import scala.concurrent.ExecutionContext
 
 trait InputStream[I] extends Iterator[I] with Input[I] { self =>
 
@@ -78,7 +79,7 @@ trait InputStream[I] extends Iterator[I] with Input[I] { self =>
 
     leftWrap -> rightWrap
   }
-  
+
   override def tapEach[U](f: I => U): InputStream[I] = underlying.tapEach(f)
-  
+
 }

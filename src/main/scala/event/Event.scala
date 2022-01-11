@@ -1,9 +1,25 @@
 package event
 
+import scala.concurrent.ExecutionContext
+
 trait Event[I,O,CC[_,_]] {
 
-
   def fireEvent(data: I): Option[O]
+
+
+  def =>:(data: I): Option[O] = fireEvent(data)
+
+
+  def prepended[B,DD[_,_]](other: Event[B,I,DD]): CC[B,O]
+
+
+  def ::[B,DD[_,_]](other: Event[B,I,DD]): CC[B,O] = prepended(other)
+
+
+  def appended[B,DD[_,_]](other: Event[O,B,DD]): CC[I,B]
+
+
+  def ~[B,DD[_,_]](other: Event[O,B,DD]): CC[I,B] = appended(other)
 
 
   def scanLeft[B](z: B)(op: (B, O) => B): CC[I,B]
@@ -33,10 +49,10 @@ trait Event[I,O,CC[_,_]] {
   def map[B](f: O => B): CC[I,B]
 
 
-  def flatMap[B](f: O => Event[I,B,_]): CC[I,B]
+  def flatMap[B,DD[_,_]](f: O => Event[I,B,DD]): CC[I,B]
 
 
-  def flatten[B](using ev: O <:< Event[I,B,_]): CC[I,B] = flatMap(ev)
+  def flatten[B,DD[_,_]](using ev: O <:< Event[I,B,DD]): CC[I,B] = flatMap(ev)
 
 
   def collect[B](pf: PartialFunction[O, B]): CC[I,B]

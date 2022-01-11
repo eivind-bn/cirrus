@@ -1,9 +1,9 @@
 package object event {
 
-  lazy val Report: EventReporter.type = EventReporter
+  lazy val Report: Reporter.type = Reporter
 
-  lazy val Delegate: EventDelegator.type = EventDelegator
+  lazy val Delegate: Delegator.type = Delegator
 
-  lazy val Broadcast: EventBroadcast.type = EventBroadcast
+  lazy val Broadcast: Broadcaster.type = Broadcaster
 
 }
