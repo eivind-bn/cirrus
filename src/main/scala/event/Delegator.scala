@@ -1,34 +1,38 @@
 package event
 
-import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
+
+import io.Stream
+
 import scala.concurrent.{ExecutionContext, Future}
+
 
 class Delegator[O] extends Event[O,O,[_,X] =>> Delegator[X]] { delegator =>
 
 
-  private val worker: mutable.ListBuffer[Delegator[O]] = ListBuffer.empty
+  private var workers: List[Delegator[O]] = List.empty
 
 
   def fireEvent(elem: O): Some[elem.type] = {
-    worker.foreach { listener => listener.fireEvent(elem) }
+    workers.foreach { listener => listener.fireEvent(elem) }
     Some(elem)
   }
 
 
-  override def prepended[B,DD[_,_]](other: Event[B, O, DD]): Delegator[O] = new Delegator[O]{
+  protected def detach(): Boolean = false
+
+
+  override def prepended[B,DD[_,O] <: Event[_,O,DD]](other: Event[B,O,DD]): Delegator[O] = new Delegator[O]{
     other.foreach{ o =>
       fireEvent(o)
     }
   }
 
 
-  override def appended[B,DD[_,_]](other: Event[O, B, DD]): Delegator[B] = new Delegator[B]{
+  override def appended[B,DD[_,O] <: Event[_,O,DD]](other: Event[O, B, DD]): Delegator[B] = new Delegator[B]{
     delegator.foreach{ o =>
       other.fireEvent(o)
     }
   }
-
 
 
   override def scanLeft[B](z: B)(op: (B, O) => B): Delegator[B] = new Delegator[B]{
@@ -50,20 +54,23 @@ class Delegator[O] extends Event[O,O,[_,X] =>> Delegator[X]] { delegator =>
 
   override def take(n: Int): Delegator[O] = new Delegator[O]{
     var i: Int = 0
-    delegator.foreach{ o =>
+    delegator.foreach{ (node,o) =>
       if i < n then {
-        i += 1
         fireEvent(o)
+        i += 1
+        if i == n then node.detach()
       }
+      else node.detach()
     }
   }
 
 
   override def takeWhile(p: O => Boolean): Delegator[O] = new Delegator[O]{
     var flag = true
-    delegator.foreach{ o =>
+    delegator.foreach{ (node,o) =>
       if flag then flag = p(o)
       if flag then fireEvent(o)
+      else node.detach()
     }
   }
 
@@ -88,11 +95,10 @@ class Delegator[O] extends Event[O,O,[_,X] =>> Delegator[X]] { delegator =>
 
   override def slice(from: Int, until: Int): Delegator[O] = new Delegator[O]{
     var i = 0
-    delegator.foreach{ o =>
-      if i >= from && i < until then {
-        fireEvent(o)
-        i += 1
-      }
+    if i < until then delegator.foreach{ (node,o) =>
+      if i == until - 1 then { fireEvent(o); node.detach() }
+      else if i >= from then { fireEvent(o); i += 1 }
+      else i += 1
     }
   }
 
@@ -104,7 +110,7 @@ class Delegator[O] extends Event[O,O,[_,X] =>> Delegator[X]] { delegator =>
   }
 
 
-  override def flatMap[B,DD[_,_]](f: O => Event[O, B, DD]): Delegator[B] = new Delegator[B]{
+  override def flatMap[B,DD[_,O] <: Stream[_,O,DD]](f: O => Stream[O,B,DD]): Delegator[B] = new Delegator[B]{
     delegator.foreach{ o =>
       f(o).foreach{ b =>
         fireEvent(b)
@@ -133,7 +139,7 @@ class Delegator[O] extends Event[O,O,[_,X] =>> Delegator[X]] { delegator =>
 
   override def span(p: O => Boolean): (Delegator[O], Delegator[O]) = {
 
-    val (left, right) = new Delegator[O] -> new Delegator[O]
+    val (left, right) = new Delegator[O]{} -> new Delegator[O]{}
     var flag = true
 
     delegator.foreach{ o =>
@@ -172,10 +178,15 @@ class Delegator[O] extends Event[O,O,[_,X] =>> Delegator[X]] { delegator =>
   }
 
 
-  override def foreach(f: O => Unit): Unit = new Delegator[O] {
-    delegator.worker.addOne(this)
-    override def fireEvent(elem: O): Some[elem.type] = { f(elem); Some(elem) }
+  override def foreach(f: O => Unit): Unit = foreach{ (node,o) => f(o) }
+
+
+  private def foreach(f: (Delegator[O],O) => Unit): Unit = new Delegator[O] {
+    delegator.workers :+= this
+    override protected def detach(): Boolean = { delegator.workers = delegator.workers.diff(Seq(this)); true }
+    override def fireEvent(elem: O): Some[elem.type] = { f(this,elem); Some(elem) }
   }
+
 
 }
 object Delegator{

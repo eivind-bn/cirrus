@@ -1,26 +1,17 @@
 package event
 
-
-trait Reporter[I,O] extends Event[I,O,Reporter] { parent =>
-
-
-  def fireEvent(data: I): Option[O]
+import io.Stream
 
 
-  override def prepended[B,DD[_,_]](other: Event[B, I, DD]): Reporter[B, O] = (data: B) => other.fireEvent(data)
+abstract class Reporter[I,O] extends Event[I,O,Reporter] { parent =>
+
+
+  override def prepended[B,DD[_,O] <: Event[_,O,DD]](other: Event[B, I, DD]): Reporter[B, O] = (data: B) => other.fireEvent(data)
     .flatMap(parent.fireEvent)
 
 
-  // TODO: Override to temporary fix AbstractMethodError bug. Presumably a scala-compiler bug.
-  override def ::[B, DD[_, _]](other: Event[B, I, DD]): Reporter[B, O] = prepended(other)
-
-
-  override def appended[B,DD[_,_]](other: Event[O, B, DD]): Reporter[I, B] = (data: I) => parent.fireEvent(data)
+  override def appended[B,DD[_,O] <: Event[_,O,DD]](other: Event[O, B, DD]): Reporter[I, B] = (data: I) => parent.fireEvent(data)
     .flatMap(other.fireEvent)
-
-
-  // TODO: Override to temporary fix AbstractMethodError bug. Presumably a scala-compiler bug.
-  override def ~[B, DD[_, _]](other: Event[O, B, DD]): Reporter[I, B] = appended(other)
 
 
   override def scanLeft[B](z: B)(op: (B, O) => B): Reporter[I,B] = (data: I) => parent.fireEvent(data)
@@ -73,8 +64,12 @@ trait Reporter[I,O] extends Event[I,O,Reporter] { parent =>
     .map(f)
 
 
-  override def flatMap[B,DD[_,_]](f: O => Event[I, B, DD]): Reporter[I, B] = (data: I) => parent.fireEvent(data)
-    .flatMap{ o => f(o).fireEvent(data) }
+  override def flatMap[B,DD[_,O] <: Stream[_,O,DD]](f: O => Stream[I,B,DD]): Reporter[I, B] = (data: I) => parent.fireEvent(data)
+    .map{ o => f(o) }
+    .flatMap{
+      case event: Event[I,B,DD] => event.fireEvent(data)
+      case stream => stream.spinWait()
+    }
 
 
   override def collect[B](pf: PartialFunction[O, B]): Reporter[I,B] = (data: I) => parent.fireEvent(data)

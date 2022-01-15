@@ -6,3 +6,8 @@ lazy val root = (project in file("."))
   .settings(
     name := "cirrus"
   )
+
+libraryDependencies ++= Seq(
+  "org.scalatest" %% "scalatest" % "3.2.9" % Test,
+  "org.scalatest" %% "scalatest" % "3.2.9"
+)
