@@ -13,7 +13,8 @@ abstract class Broadcaster[I,O] extends Event[I,O,Broadcaster] { parent =>
 
   trait Relay[I1,O1] extends Broadcaster[I,O1]{
     var last: Option[O1] = None
-    override val reporter: Reporter[I,O1] = parent.reporter.collect{ case _ if last.isDefined => last.get }
+    def getAndReset[T]: PartialFunction[T,O1] = { case _ if last.isDefined => val temp = last.get; last = None; temp }
+    override val reporter: Reporter[I,O1] = parent.reporter.collect(getAndReset)
     override val delegator: Delegator[O1] = parent.delegator.collect(transformer).tapEach(o1 => last = Some(o1))
     override def fireEvent(data: I): Option[O1] = data =>: reporter
     def transformer: PartialFunction[O,O1]
@@ -54,8 +55,11 @@ abstract class Broadcaster[I,O] extends Event[I,O,Broadcaster] { parent =>
   override def takeWhile(p: O => Boolean): Broadcaster[I,O] = new Relay[I,O] {
     var flag = true
     override def transformer: PartialFunction[O, O] = new PartialFunction[O,O] {
-      override def isDefinedAt(x: O): Boolean = flag
-      override def apply(v1: O): O = { flag = p(v1); v1 }
+      override def isDefinedAt(x: O): Boolean = flag && {
+        flag = p(x)
+        flag
+      }
+      override def apply(v1: O): O = v1
     }
   }
 
@@ -71,9 +75,12 @@ abstract class Broadcaster[I,O] extends Event[I,O,Broadcaster] { parent =>
 
   override def dropWhile(p: O => Boolean): Broadcaster[I, O] = new Relay[I,O] {
     var flag = false
-    override def transformer: PartialFunction[O, O] = {
-      case o if flag => o
-      case o if {flag = p(o); false} => throw new Exception
+    override def transformer: PartialFunction[O, O] = new PartialFunction[O,O] {
+      override def isDefinedAt(x: O): Boolean = flag || {
+        flag = !p(x)
+        flag
+      }
+      override def apply(v1: O): O = v1
     }
   }
 
@@ -128,20 +135,19 @@ abstract class Broadcaster[I,O] extends Event[I,O,Broadcaster] { parent =>
 
     var flag = true
 
+    val (leftDelegate,rightDelegate) = parent.delegator.span(o => flag && { flag = p(o); flag })
+    val (leftReporter,rightReporter) = parent.reporter.span(o => flag && { flag = p(o); flag })
+
     val left = new Relay[I,O] {
       override def transformer: PartialFunction[O, O] = identity(_)
-      override val delegator: Delegator[O] = Delegate[O]
+      override val delegator: Delegator[O] = leftDelegate.tapEach{ o => last = Some(o) }
+      override val reporter: Reporter[I, O] = leftReporter.collect(getAndReset)
     }
 
     val right = new Relay[I,O] {
       override def transformer: PartialFunction[O, O] = identity(_)
-      override val delegator: Delegator[O] = Delegate[O]
-    }
-
-    delegator.foreach{ o =>
-      if flag then flag = p(o)
-      if flag then left.delegator.fireEvent(o)
-      else right.delegator.fireEvent(o)
+      override val delegator: Delegator[O] = rightDelegate.tapEach{ o => last = Some(o) }
+      override val reporter: Reporter[I, O] = rightReporter.collect(getAndReset)
     }
 
     left -> right
@@ -150,24 +156,19 @@ abstract class Broadcaster[I,O] extends Event[I,O,Broadcaster] { parent =>
 
   override def splitAt(n: Int): (Broadcaster[I, O], Broadcaster[I, O]) = {
 
-    var i = 0
+    val (leftDelegate,rightDelegate) = parent.delegator.splitAt(n)
+    val (leftReporter,rightReporter) = parent.reporter.splitAt(n)
 
     val left = new Relay[I,O] {
       override def transformer: PartialFunction[O, O] = identity(_)
-      override val delegator: Delegator[O] = Delegate[O]
+      override val delegator: Delegator[O] = leftDelegate.tapEach{ o => last = Some(o) }
+      override val reporter: Reporter[I, O] = leftReporter.collect(getAndReset)
     }
 
     val right = new Relay[I,O] {
       override def transformer: PartialFunction[O, O] = identity(_)
-      override val delegator: Delegator[O] = Delegate[O]
-    }
-
-    delegator.foreach{ o =>
-      if i < n then {
-        left.delegator.fireEvent(o)
-        i += 1
-      }
-      else right.delegator.fireEvent(o)
+      override val delegator: Delegator[O] = rightDelegate.tapEach{ o => last = Some(o) }
+      override val reporter: Reporter[I, O] = rightReporter.collect(getAndReset)
     }
 
     left -> right

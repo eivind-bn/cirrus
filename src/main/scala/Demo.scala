@@ -9,11 +9,13 @@ import java.util.{Timer, TimerTask}
 object Demo extends App{
 
 
-  val (a,b) = List("Foo","Bar","Baz").span(!_.contains("a"))
-  println("a")
-  a.foreach(println)
-  println("b")
-  b.foreach(println)
+  println(Broadcast[String].map(_.toInt).fireEvent("42"))
+
+//  val (a,b) = List("Foo","Bar","Baz").span(!_.contains("a"))
+//  println("a")
+//  a.foreach(println)
+//  println("b")
+//  b.foreach(println)
 
 //  val delegate = Delegate[String].tapEach(s => println(s"delegate1: ${s}"))
 //  val report = Report[String].tapEach(s => println(s"report1: ${s}")).map(s => s"report mapped ${s}")

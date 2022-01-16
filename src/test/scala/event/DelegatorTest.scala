@@ -49,7 +49,7 @@ class DelegatorTest extends AnyWordSpec {
       assert(counter sameElements List(15,9,3,12,5))
     }
 
-    "adhere to expected monadic behaviour" in {
+    "methods behaviour meets expectations" in {
       val root: Delegator[Int] = Delegate[Int]
 
       var counter = 0

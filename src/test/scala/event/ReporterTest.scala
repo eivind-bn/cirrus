@@ -92,6 +92,14 @@ class ReporterTest  extends AnyWordSpec {
         val (a,b) = reporter.span(!_.contains("a"))
         List("Foo","Bar","Baz").flatMap(a.fireEvent) -> List("Foo","Bar","Baz").flatMap(b.fireEvent)
       }
+      assertResult((0 until 30) -> (0 to 50)){
+        val (a,b) = Report[Int].splitAt(30)
+        (0 to 50).flatMap(a.fireEvent) -> (0 to 50).flatMap(b.fireEvent)
+      }
+      assertResult((0 until 20) -> (0 to 50)){
+        val (a,b) = Report[Int].span(int => int < 20 || int > 30)
+        (0 to 50).flatMap(a.fireEvent) -> (0 to 50).flatMap(b.fireEvent)
+      }
       assertResult(List("Foo") -> List("Foo","Baz")){
         val otherReporter = Report[String].filter(s => s == "Foo" || s == "Baz")
         List("Foo","Bar","Baz").flatMap(reporter.filter(_ == "Foo").prepended(otherReporter).fireEvent) ->
@@ -137,7 +145,7 @@ class ReporterTest  extends AnyWordSpec {
       assert(counter == 16)
     }
 
-    "adhere to expected monadic behaviour" in {
+    "methods behaviour meets expectations" in {
       val root = Report[Int]
 
       var counter = 0
@@ -160,7 +168,7 @@ class ReporterTest  extends AnyWordSpec {
       root.take(0).fail(20)
       root.takeWhile(_ < 0).fail(20)
       root.drop(10).fail(5)
-      root.dropWhile(_ > 0).fail(10)
+      root.dropWhile(_ < 50).fail(10)
 
       root.run(50,50)
       root.filter(_ => true).run(50,50)
