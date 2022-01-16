@@ -83,7 +83,17 @@ abstract class Reporter[I,O] extends Event[I,O,Reporter] { parent =>
   }
 
 
-  override def span(p: O => Boolean): (Reporter[I,O], Reporter[I,O]) = takeWhile(p) -> dropWhile(p)
+  override def span(p: O => Boolean): (Reporter[I,O], Reporter[I,O]) = {
+    var flag = true
+
+    val left: Reporter[I,O] = (data: I) => parent.fireEvent(data)
+      .filter{ o => if flag then flag = p(o); flag }
+
+    val right: Reporter[I,O] = (data: I) => parent.fireEvent(data)
+      .filterNot{ o => flag }
+
+    left -> right
+  }
 
 
   override def splitAt(n: Int): (Reporter[I,O], Reporter[I,O]) = {

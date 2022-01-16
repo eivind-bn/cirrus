@@ -6,8 +6,6 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
 trait Stream[I,O,CC[_,O] <: Stream[_,O,CC]] {
 
 
-
-
   def scanLeft[B](z: B)(op: (B, O) => B): CC[I,B]
 
 

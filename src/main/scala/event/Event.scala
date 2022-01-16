@@ -1,10 +1,10 @@
 package event
 
+import scala.concurrent.ExecutionContext
 import io.Stream
 
-import scala.concurrent.ExecutionContext
-
 trait Event[I,O,CC[_,O] <: Event[_,O,CC]] extends Stream[I,O,CC] {
+
 
   def fireEvent(data: I): Option[O]
 

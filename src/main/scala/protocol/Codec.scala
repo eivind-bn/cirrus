@@ -1,6 +1,5 @@
 package protocol
 
-import io.InputStream
 import pattern.Extractor
 
 import scala.util.Try
@@ -13,13 +12,7 @@ trait Codec[A,B[T]] { codec =>
 
 
 
-  val inputStream = new InputStream[A] {
-    override def close(): Unit = ???
 
-    override def hasNext: Boolean = ???
-
-    override def next(): A = ???
-  }
 
 
 

@@ -1,7 +1,5 @@
 package protocol
 
-import io.{InputStream, OutputStream}
-
 import java.net.{InetAddress, InetSocketAddress, SocketAddress}
 import java.nio.ByteBuffer
 import java.nio.channels.{ServerSocketChannel, SocketChannel}

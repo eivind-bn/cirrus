@@ -1,4 +1,4 @@
-package io
+package event
 
 import event.{Delegate, Delegator, Event, Report, Reporter}
 import org.scalatest.wordspec.AnyWordSpec
@@ -49,7 +49,7 @@ class DelegatorTest extends AnyWordSpec {
       assert(counter sameElements List(15,9,3,12,5))
     }
 
-    "respect expected monadic behaviour" in {
+    "adhere to expected monadic behaviour" in {
       val root: Delegator[Int] = Delegate[Int]
 
       var counter = 0
@@ -102,7 +102,51 @@ class DelegatorTest extends AnyWordSpec {
       (0 until iter).foreach(root.fireEvent)
       assert(counter == expected)
     }
+
+    "qualify for garbage collection once exhausted" in {
+
+      // Created anonymous instance
+      val delegator: Delegator[Int] = new Delegator[Int]
+
+      delegator.take(1)
+      assert(delegator.workers.length == 1)
+
+      delegator.fireEvent(5)
+      assert(delegator.workers.isEmpty)
+
+
+      var counter = 0
+
+      delegator.take(3).foreach(_ => counter += 1)
+      delegator.takeWhile(_ < 5).foreach(_ => counter += 1)
+      delegator.slice(3,5).foreach(_ => counter += 1)
+
+      assert(delegator.workers.length == 3)
+
+      // trigger take() & takeWhile()
+      delegator.fireEvent(2)
+      assert(counter == 2)
+
+      // trigger take() & exhaust takeWhile()
+      delegator.fireEvent(6)
+      assert(counter == 3)
+      assert(delegator.workers.length == 2)
+
+      // trigger and exhaust take()
+      delegator.fireEvent(8)
+      assert(counter == 4)
+      assert(delegator.workers.length == 1)
+
+      // trigger slice() and exhaust it.
+      delegator.fireEvent(9)
+      delegator.fireEvent(9)
+      assert(counter == 6)
+      assert(delegator.workers.isEmpty)
+
+      delegator.fireEvent(9)
+      assert(counter == 6)
+      assert(delegator.workers.isEmpty)
+
+    }
   }
-
-
 }

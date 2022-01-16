@@ -1,6 +1,6 @@
 import protocol.{Codec, Protocol, TCP}
-import event._
-import io.InputStream
+import event.*
+import io.Stream
 import pattern.Extractor
 
 import java.util.{Timer, TimerTask}
@@ -9,16 +9,21 @@ import java.util.{Timer, TimerTask}
 object Demo extends App{
 
 
+  val (a,b) = List("Foo","Bar","Baz").span(!_.contains("a"))
+  println("a")
+  a.foreach(println)
+  println("b")
+  b.foreach(println)
 
-  val delegate = Delegate[String].tapEach(s => println(s"delegate1: ${s}"))
-  val report = Report[String].tapEach(s => println(s"report1: ${s}")).map(s => s"report mapped ${s}")
-  val broadcast = Broadcast[String].tapEach(s => println(s"broadcast1: ${s}"))
-
-  delegate.tapEach(s => println(s"delegate2: ${s}"))
-  report.tapEach(s => println(s"report2: ${s}"))
-  broadcast.tapEach(s => println(s"broadcast2: ${s}"))
-
-  "Hello" =>: report ~ delegate ~ broadcast
+//  val delegate = Delegate[String].tapEach(s => println(s"delegate1: ${s}"))
+//  val report = Report[String].tapEach(s => println(s"report1: ${s}")).map(s => s"report mapped ${s}")
+//  val broadcast = Broadcast[String].tapEach(s => println(s"broadcast1: ${s}"))
+//
+//  delegate.tapEach(s => println(s"delegate2: ${s}"))
+//  report.tapEach(s => println(s"report2: ${s}"))
+//  broadcast.tapEach(s => println(s"broadcast2: ${s}"))
+//
+//  "Hello" =>: report ~ delegate ~ broadcast
 
 
 

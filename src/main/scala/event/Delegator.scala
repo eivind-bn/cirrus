@@ -1,24 +1,26 @@
 package event
 
 
-import io.Stream
-
 import scala.concurrent.{ExecutionContext, Future}
+import io.Stream
 
 
 class Delegator[O] extends Event[O,O,[_,X] =>> Delegator[X]] { delegator =>
 
 
-  private var workers: List[Delegator[O]] = List.empty
+  private var _workers: List[Delegator[O]] = List.empty
+
+
+  protected def detach(): Boolean = false
 
 
   def fireEvent(elem: O): Some[elem.type] = {
-    workers.foreach { listener => listener.fireEvent(elem) }
+    _workers.foreach { listener => listener.fireEvent(elem) }
     Some(elem)
   }
 
 
-  protected def detach(): Boolean = false
+  def workers: List[Delegator[O]] = _workers
 
 
   override def prepended[B,DD[_,O] <: Event[_,O,DD]](other: Event[B,O,DD]): Delegator[O] = new Delegator[O]{
@@ -182,8 +184,8 @@ class Delegator[O] extends Event[O,O,[_,X] =>> Delegator[X]] { delegator =>
 
 
   private def foreach(f: (Delegator[O],O) => Unit): Unit = new Delegator[O] {
-    delegator.workers :+= this
-    override protected def detach(): Boolean = { delegator.workers = delegator.workers.diff(Seq(this)); true }
+    delegator._workers :+= this
+    override protected def detach(): Boolean = { delegator._workers = delegator._workers.diff(Seq(this)); true }
     override def fireEvent(elem: O): Some[elem.type] = { f(this,elem); Some(elem) }
   }
 
