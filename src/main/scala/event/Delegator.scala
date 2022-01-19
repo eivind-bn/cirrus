@@ -1,14 +1,13 @@
 package event
 
 
-import scala.concurrent.{ExecutionContext, Future}
 import io.Stream
 
 
 class Delegator[O] extends Event[O,O,[_,X] =>> Delegator[X]] { delegator =>
 
 
-  private var _workers: List[Delegator[O]] = List.empty
+  protected var _workers: List[Delegator[O]] = List.empty
 
 
   protected def detach(): Boolean = false

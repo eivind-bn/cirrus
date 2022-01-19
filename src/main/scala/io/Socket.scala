@@ -10,7 +10,7 @@ import scala.collection.mutable
 import scala.util.Try
 
 trait Socket[I,O] {
-  
+
   protected object Pool{
     trait Endpoint{
       def socket(): SocketChannel
@@ -34,7 +34,7 @@ trait Socket[I,O] {
 
     Runtime.getRuntime.addShutdownHook(new Thread(() => serverSockets.values.foreach(_.close())))
   }
-  
+
 
   def server(port: Int): Try[(InputStream[Byte], OutputStream[Byte])] = Try{
     val in = ByteBuffer.allocate(1)
@@ -66,8 +66,6 @@ trait Socket[I,O] {
   }
 
 
-  def client(): (InputStream[Byte], OutputStream[Byte]) = {
-    ???
-  }
+  def client(): (InputStream[Byte], OutputStream[Byte]) = ???
 
 }

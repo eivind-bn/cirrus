@@ -9,53 +9,56 @@ class ReporterTest  extends AnyWordSpec {
 
     "return some processed output when prior reporters are non-exhausted" in {
 
-      val reporter = Report[String]
-
+      val stringReporter = Report[String]
+      val intReporter = Report[Int]
 
       assertResult(Some("Foo")){
-        reporter.fireEvent("Foo")
+        stringReporter.fireEvent("Foo")
+      }
+      assertResult(0 to 100){
+        (0 to 100).flatMap(intReporter.fireEvent)
       }
       assertResult(Some("FOO")){
-        reporter.map(_.toUpperCase).fireEvent("Foo")
+        stringReporter.map(_.toUpperCase).fireEvent("Foo")
       }
       assertResult(Some("foo")){
-        reporter.collect{ case s => s.toLowerCase }.fireEvent("Foo")
+        stringReporter.collect{ case s => s.toLowerCase }.fireEvent("Foo")
       }
       assertResult(Some("Foo")){
-        reporter.tapEach(identity).fireEvent("Foo")
+        stringReporter.tapEach(identity).fireEvent("Foo")
       }
       assertResult(Some("Foo Bar")){
-        reporter.scanLeft("Foo")((x,y) => s"$x $y").fireEvent("Bar")
+        stringReporter.scanLeft("Foo")((x,y) => s"$x $y").fireEvent("Bar")
       }
       assertResult(List(("Foo",0),("Bar",1),("Baz",2))){
-        List("Foo", "Bar", "Baz").flatMap(reporter.zipWithIndex.fireEvent)
+        List("Foo", "Bar", "Baz").flatMap(stringReporter.zipWithIndex.fireEvent)
       }
       assertResult(Some(42)){
-        reporter.flatMap(_ => Report[String].map(_.toInt)).fireEvent("42")
+        stringReporter.flatMap(_ => Report[String].map(_.toInt)).fireEvent("42")
       }
       assertResult(Some(42)){
-        reporter.map(_ => Report[String].map(_.toInt)).flatten.fireEvent("42")
+        stringReporter.map(_ => Report[String].map(_.toInt)).flatten.fireEvent("42")
       }
       assertResult(Some("Foo")){
-        reporter.take(5).fireEvent("Foo")
+        stringReporter.take(5).fireEvent("Foo")
       }
       assertResult(Some("Foo")){
-        reporter.slice(0,1).fireEvent("Foo")
+        stringReporter.slice(0,1).fireEvent("Foo")
       }
       assertResult(Some("Foo")){
-        reporter.takeWhile(_ => true).fireEvent("Foo")
+        stringReporter.takeWhile(_ => true).fireEvent("Foo")
       }
       assertResult(Some("Foo")){
-        reporter.dropWhile(_ => false).fireEvent("Foo")
+        stringReporter.dropWhile(_ => false).fireEvent("Foo")
       }
       assertResult(Some("Foo")){
-        reporter.filter(_ => true).fireEvent("Foo")
+        stringReporter.filter(_ => true).fireEvent("Foo")
       }
       assertResult(Some("Foo")){
-        reporter.filterNot(_ => false).fireEvent("Foo")
+        stringReporter.filterNot(_ => false).fireEvent("Foo")
       }
       assertResult(Some("Foo")){
-        reporter.drop(0).fireEvent("Foo")
+        stringReporter.drop(0).fireEvent("Foo")
       }
     }
 
