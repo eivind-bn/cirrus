@@ -1,9 +1,10 @@
 package event
 
-import scala.concurrent.ExecutionContext
-import io.Stream
+import combinator.PureStream
 
-trait Event[I,O,CC[_,O] <: Event[_,O,CC]] extends Stream[I,O,CC] {
+import scala.concurrent.ExecutionContext
+
+trait Event[I,O,CC[_,O] <: Event[_,O,CC]] {
 
 
   def fireEvent(data: I): Option[O]
@@ -22,6 +23,9 @@ trait Event[I,O,CC[_,O] <: Event[_,O,CC]] extends Stream[I,O,CC] {
 
 
   def ~[B,DD[_,O] <: Event[_,O,DD]](other: Event[O,B,DD]): CC[I,B] = appended(other)
+
+
+  def foreach(f: O => Unit): Unit
 
 
 }

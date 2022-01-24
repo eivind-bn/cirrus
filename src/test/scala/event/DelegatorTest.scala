@@ -99,6 +99,8 @@ class DelegatorTest extends AnyWordSpec {
       root.appended(newRoot)
       newRoot.increment(iter)
 
+
+
       (0 until iter).foreach(root.fireEvent)
       assert(counter == expected)
     }

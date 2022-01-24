@@ -1,13 +1,15 @@
 package protocol
 
+import io.Stream
 import protocol.lang.{Ascii, US_ASCII}
-
 
 import java.nio.ByteBuffer
 import java.nio.charset.{Charset, CharsetDecoder, CharsetEncoder, CodingErrorAction}
 import scala.util.Try
 
-trait Reader[IN <: Iterable[Byte]] extends Codec[IN] { self =>
+
+
+trait Reader[IN <: Byte] extends Codec[IN] { self =>
 
   override type CC[T <: IN] <: Stringent[T]
 
@@ -21,8 +23,13 @@ trait Reader[IN <: Iterable[Byte]] extends Codec[IN] { self =>
     .onMalformedInput(CodingErrorAction.REPORT)
     .onUnmappableCharacter(CodingErrorAction.REPORT)
 
+  
 
-  trait Stringent[T <: IN] extends Protocol[T] with Iterable[Char]{
+  trait Stringent[T <: IN] extends Protocol[T]{
+    def appended(other: CC[IN]): CC[IN] = codec.decode(this.toString ++ other.toString).get
+    def ++(other: CC[IN]): CC[IN] = appended(other)
+    def prepended(other: CC[IN]): CC[IN] = codec.decode(other.toString ++ this.toString).get
+    def ++:(other: CC[IN]): CC[IN] = codec.decode(other.toString ++ this.toString).get
     override def toString: String = decoder.decode(ByteBuffer.wrap(serialize)).toString
   }
 
@@ -33,6 +40,6 @@ trait Reader[IN <: Iterable[Byte]] extends Codec[IN] { self =>
   override def decode[T <: IN](rawData: T): Try[CC[T]]
 
 
-  def decode(rawData: String): Try[CC[IN]]
+  def decode(rawData: Char): Try[CC[IN]]
 
 }

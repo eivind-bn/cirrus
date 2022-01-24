@@ -1,10 +1,11 @@
 package event
 
 
-import io.Stream
+import automation.FiniteStateMachine
+import combinator.PureStream
 
 
-class Delegator[O] extends Event[O,O,[_,X] =>> Delegator[X]] { delegator =>
+class Delegator[O] extends Event[O,O,[_,X] =>> Delegator[X]] with PureStream[O,O,[_,X] =>> Delegator[X]] { delegator =>
 
 
   protected var _workers: List[Delegator[O]] = List.empty
@@ -111,7 +112,7 @@ class Delegator[O] extends Event[O,O,[_,X] =>> Delegator[X]] { delegator =>
   }
 
 
-  override def flatMap[B,DD[_,O] <: Stream[_,O,DD]](f: O => Stream[O,B,DD]): Delegator[B] = new Delegator[B]{
+  override def flatMap[B,DD[_,O] <: PureStream[_,O,DD]](f: O => PureStream[O,B,DD]): Delegator[B] = new Delegator[B]{
     delegator.foreach{ o =>
       f(o).foreach{ b =>
         fireEvent(b)

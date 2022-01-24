@@ -1,9 +1,10 @@
 package event
 
-import io.Stream
+import automation.FiniteStateMachine
+import combinator.PureStream
 
 
-abstract class Reporter[I,O] extends Event[I,O,Reporter] { parent =>
+abstract class Reporter[I,O] extends Event[I,O,Reporter] with PureStream[I,O,Reporter] { parent =>
 
 
   override def prepended[B,DD[_,O] <: Event[_,O,DD]](other: Event[B, I, DD]): Reporter[B, O] = (data: B) => other.fireEvent(data)
@@ -64,7 +65,7 @@ abstract class Reporter[I,O] extends Event[I,O,Reporter] { parent =>
     .map(f)
 
 
-  override def flatMap[B,DD[_,O] <: Stream[_,O,DD]](f: O => Stream[I,B,DD]): Reporter[I, B] = (data: I) => parent.fireEvent(data)
+  override def flatMap[B,DD[_,O] <: PureStream[_,O,DD]](f: O => PureStream[I,B,DD]): Reporter[I, B] = (data: I) => parent.fireEvent(data)
     .map{ o => f(o) }
     .flatMap{
       case event: Event[I,B,DD] => event.fireEvent(data)

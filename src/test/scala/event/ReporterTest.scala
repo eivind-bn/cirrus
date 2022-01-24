@@ -2,7 +2,7 @@ package event
 
 import org.scalatest.wordspec.AnyWordSpec
 
-class ReporterTest  extends AnyWordSpec {
+class ReporterTest extends AnyWordSpec {
 
 
   "A reporter" should {
