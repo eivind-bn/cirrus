@@ -1,11 +1,9 @@
 package event
 
-
-import automation.FiniteStateMachine
 import combinator.PureStream
 
 
-abstract class Broadcaster[I,O] extends Event[I,O,Broadcaster] with PureStream[I,O,Broadcaster] { parent =>
+abstract class Broadcaster[I,O] extends EventStream[I,O,Broadcaster] { parent =>
 
 
   protected val delegator: Delegator[O] = Delegate[O]
@@ -17,20 +15,20 @@ abstract class Broadcaster[I,O] extends Event[I,O,Broadcaster] with PureStream[I
     def getAndReset[T]: PartialFunction[T, O1] = { case _ if last.isDefined => val temp = last.get; last = None; temp }
     override val reporter: Reporter[I, O1] = parent.reporter.collect(getAndReset)
     override val delegator: Delegator[O1] = parent.delegator.collect(transformer).tapEach(o1 => last = Some(o1))
-    override def fireEvent(data: I): Option[O1] = data =>: reporter
+    override def dispatch(data: I): Option[O1] = data =>: reporter
     def transformer: PartialFunction[O, O1]
   }
 
 
-  override def prepended[B, DD[_, O] <: Event[_, O, DD]](other: Event[B, I, DD]): Broadcaster[B, O] = new Broadcaster[B, O] {
-    override protected val reporter: Reporter[B, O] = (data: B) => other.fireEvent(data).flatMap { i => parent.fireEvent(i) }
-    override def fireEvent(data: B): Option[O] = reporter.fireEvent(data)
+  override def prepended[B, DD[_, O] <: EventStream[_, O, DD]](other: EventStream[B, I, DD]): Broadcaster[B, O] = new Broadcaster[B, O] {
+    override protected val reporter: Reporter[B, O] = (data: B) => other.dispatch(data).flatMap { i => parent.dispatch(i) }
+    override def dispatch(data: B): Option[O] = reporter.dispatch(data)
   }
 
 
-  override def appended[B, DD[_, O] <: Event[_, O, DD]](other: Event[O, B, DD]): Broadcaster[I, B] = new Broadcaster[I, B] {
-    override protected val reporter: Reporter[I, B] = (data: I) => parent.fireEvent(data).flatMap { o => other.fireEvent(o) }
-    override def fireEvent(data: I): Option[B] = reporter.fireEvent(data)
+  override def appended[B, DD[_, O] <: EventStream[_, O, DD]](other: EventStream[O, B, DD]): Broadcaster[I, B] = new Broadcaster[I, B] {
+    override protected val reporter: Reporter[I, B] = (data: I) => parent.dispatch(data).flatMap { o => other.dispatch(o) }
+    override def dispatch(data: I): Option[B] = reporter.dispatch(data)
   }
 
 
@@ -112,12 +110,11 @@ abstract class Broadcaster[I,O] extends Event[I,O,Broadcaster] with PureStream[I
   }
 
 
-  override def flatMap[B, DD[_, O] <: PureStream[_, O, DD]](f: O => PureStream[I, B, DD]): Broadcaster[I, B] = new Relay[I, B] {
-    override val reporter: Reporter[I, B] = (data: I) => parent.reporter.fireEvent(data)
+  override def flatMap[B](f: O => PureStream[I, B, Broadcaster]): Broadcaster[I, B] = new Relay[I, B] {
+    override val reporter: Reporter[I, B] = (data: I) => parent.reporter.dispatch(data)
       .map { o => f(o) }
       .flatMap {
-        case event: Event[I, B, DD] => event.fireEvent(data)
-        case stream => stream.spinWait()
+        case event: EventStream[I, B, _] => event.dispatch(data)
       }
       .tapEach { b => last = Some(b) }
       .lastOption
@@ -127,7 +124,7 @@ abstract class Broadcaster[I,O] extends Event[I,O,Broadcaster] with PureStream[I
   }
 
 
-  override def collect[B](pf: PartialFunction[O, B]): Broadcaster[I, B] = new Relay[I, B] {
+  override def collect[B](pf: O ~> B): Broadcaster[I, B] = new Relay[I, B] {
     override def transformer: PartialFunction[O, B] = pf
   }
 
@@ -202,14 +199,6 @@ abstract class Broadcaster[I,O] extends Event[I,O,Broadcaster] with PureStream[I
   override def foreach(f: O => Unit): Unit = new Relay[I, Unit] {
     override def transformer: PartialFunction[O, Unit] = f(_)
   }
-
-
-  override def spinWait(waitFunc: => Unit = Thread.onSpinWait()): Option[O] = {
-    var capture: Option[O] = None
-    delegator.take(1).foreach { o => capture = Some(o) }
-    while (capture.isEmpty) waitFunc
-    capture
-  }
   
 
 }
@@ -217,8 +206,8 @@ abstract class Broadcaster[I,O] extends Event[I,O,Broadcaster] with PureStream[I
 object Broadcaster{
 
   def apply[O]: Broadcaster[O,O] = new Broadcaster[O,O] {
-    override val reporter: Reporter[O,O] = Report[O].tapEach{ o => delegator.fireEvent(o) }
-    override def fireEvent(data: O): Option[O] = data =>: delegator
+    override val reporter: Reporter[O,O] = Report[O].tapEach{ o => delegator.dispatch(o) }
+    override def dispatch(data: O): Option[O] = data =>: delegator
   }
 
 }

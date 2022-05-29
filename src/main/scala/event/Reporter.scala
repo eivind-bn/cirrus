@@ -1,25 +1,24 @@
 package event
 
-import automation.FiniteStateMachine
 import combinator.PureStream
 
 
-abstract class Reporter[I,O] extends Event[I,O,Reporter] with PureStream[I,O,Reporter] { parent =>
+trait Reporter[I,O] extends EventStream[I,O,Reporter] { parent =>
 
 
-  override def prepended[B,DD[_,O] <: Event[_,O,DD]](other: Event[B, I, DD]): Reporter[B, O] = (data: B) => other.fireEvent(data)
-    .flatMap(parent.fireEvent)
+  override def prepended[B,DD[_,O] <: EventStream[_,O,DD]](other: EventStream[B, I, DD]): Reporter[B, O] = (data: B) => other.dispatch(data)
+    .flatMap(parent.dispatch)
 
 
-  override def appended[B,DD[_,O] <: Event[_,O,DD]](other: Event[O, B, DD]): Reporter[I, B] = (data: I) => parent.fireEvent(data)
-    .flatMap(other.fireEvent)
+  override def appended[B,DD[_,O] <: EventStream[_,O,DD]](other: EventStream[O, B, DD]): Reporter[I, B] = (data: I) => parent.dispatch(data)
+    .flatMap(other.dispatch)
 
 
-  override def scanLeft[B](z: B)(op: (B, O) => B): Reporter[I,B] = (data: I) => parent.fireEvent(data)
+  override def scanLeft[B](z: B)(op: (B, O) => B): Reporter[I,B] = (data: I) => parent.dispatch(data)
     .map { o => op(z, o) }
 
 
-  override def filter(pred: O => Boolean): Reporter[I,O] = (data: I) => parent.fireEvent(data)
+  override def filter(pred: O => Boolean): Reporter[I,O] = (data: I) => parent.dispatch(data)
     .filter(pred)
 
 
@@ -28,58 +27,56 @@ abstract class Reporter[I,O] extends Event[I,O,Reporter] with PureStream[I,O,Rep
 
   override def take(n: Int): Reporter[I, O] = new Reporter[I,O] {
     var i: Int = -1
-    override def fireEvent(data: I): Option[O] = parent.fireEvent(data)
+    override def dispatch(data: I): Option[O] = parent.dispatch(data)
       .filter { _ => i += 1; i < n }
   }
 
 
   override def takeWhile(p: O => Boolean): Reporter[I,O] = new Reporter[I,O] {
     var flag: Boolean = true
-    override def fireEvent(data: I): Option[O] = parent.fireEvent(data)
+    override def dispatch(data: I): Option[O] = parent.dispatch(data)
       .filter{ o => if flag then flag = p(o); flag }
   }
 
 
   override def drop(n: Int): Reporter[I,O] = new Reporter[I,O] {
     var i: Int = -1
-    override def fireEvent(data: I): Option[O] = parent.fireEvent(data)
+    override def dispatch(data: I): Option[O] = parent.dispatch(data)
       .filterNot { _ => i += 1; i < n }
   }
 
 
   override def dropWhile(p: O => Boolean): Reporter[I,O] = new Reporter[I,O] {
     var flag: Boolean = true
-    override def fireEvent(data: I): Option[O] = parent.fireEvent(data)
+    override def dispatch(data: I): Option[O] = parent.dispatch(data)
       .filterNot{ o => if flag then flag = p(o); flag }
   }
 
 
   override def slice(from: Int, until: Int): Reporter[I,O] = new Reporter[I,O] {
     var i: Int = -1
-    override def fireEvent(data: I): Option[O] = parent.fireEvent(data)
+    override def dispatch(data: I): Option[O] = parent.dispatch(data)
       .filter{ _ => i += 1; i >= from && i < until }
   }
 
 
-  override def map[B](f: O => B): Reporter[I,B] = (data: I) => parent.fireEvent(data)
+  override def map[B](f: O => B): Reporter[I,B] = (data: I) => parent.dispatch(data)
     .map(f)
 
 
-  override def flatMap[B,DD[_,O] <: PureStream[_,O,DD]](f: O => PureStream[I,B,DD]): Reporter[I, B] = (data: I) => parent.fireEvent(data)
+  override def flatMap[B](f: O => PureStream[I, B, Reporter]): Reporter[I, B] = (data: I) => parent.dispatch(data)
     .map{ o => f(o) }
     .flatMap{
-      case event: Event[I,B,DD] => event.fireEvent(data)
-      case stream => stream.spinWait()
+      case event: EventStream[I,B,_] => event.dispatch(data)
     }
 
-
-  override def collect[B](pf: PartialFunction[O, B]): Reporter[I,B] = (data: I) => parent.fireEvent(data)
+  override def collect[B](pf: O ~> B): Reporter[I, B] = (data: I) => parent.dispatch(data)
     .collect(pf)
 
 
   override def zipWithIndex: Reporter[I,(O,Int)] = new Reporter[I,(O, Int)] {
     var i: Int = -1
-    override def fireEvent(data: I): Option[(O,Int)] = parent.fireEvent(data)
+    override def dispatch(data: I): Option[(O,Int)] = parent.dispatch(data)
       .zip{i += 1; Some(i)}
   }
 
@@ -87,10 +84,10 @@ abstract class Reporter[I,O] extends Event[I,O,Reporter] with PureStream[I,O,Rep
   override def span(p: O => Boolean): (Reporter[I,O], Reporter[I,O]) = {
     var flag = true
 
-    val left: Reporter[I,O] = (data: I) => parent.fireEvent(data)
+    val left: Reporter[I,O] = (data: I) => parent.dispatch(data)
       .filter{ o => if flag then flag = p(o); flag }
 
-    val right: Reporter[I,O] = (data: I) => parent.fireEvent(data)
+    val right: Reporter[I,O] = (data: I) => parent.dispatch(data)
       .filterNot{ o => flag }
 
     left -> right
@@ -100,17 +97,17 @@ abstract class Reporter[I,O] extends Event[I,O,Reporter] with PureStream[I,O,Rep
   override def splitAt(n: Int): (Reporter[I,O], Reporter[I,O]) = {
     var i = -1
 
-    val left: Reporter[I,O] = (data: I) => parent.fireEvent(data)
+    val left: Reporter[I,O] = (data: I) => parent.dispatch(data)
       .filter{ o => i += 1; i < n }
 
-    val right: Reporter[I,O] = (data: I) => parent.fireEvent(data)
+    val right: Reporter[I,O] = (data: I) => parent.dispatch(data)
       .filterNot{ o => i < n }
 
     left -> right
   }
 
 
-  override def tapEach[U](f: O => U): Reporter[I,O] = (data: I) => parent.fireEvent(data)
+  override def tapEach[U](f: O => U): Reporter[I,O] = (data: I) => parent.dispatch(data)
     .tapEach(o => f(o))
     .lastOption
 

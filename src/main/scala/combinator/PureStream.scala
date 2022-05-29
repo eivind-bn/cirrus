@@ -1,6 +1,5 @@
 package combinator
 
-import automation.FiniteStateMachine
 
 trait PureStream[I, O, CC[_, O] <: PureStream[_, O, CC]] extends Stream[I, O, CC] { pure =>
 
@@ -32,13 +31,13 @@ trait PureStream[I, O, CC[_, O] <: PureStream[_, O, CC]] extends Stream[I, O, CC
   def map[B](f: O => B): CC[I, B]
 
 
-  def flatMap[B, DD[I, O] <: PureStream[I, O, DD]](f: O => PureStream[I, B, DD]): CC[I, B]
+  def flatMap[B](f: O => PureStream[I, B, CC]): CC[I, B]
 
 
-  def flatten[B, DD[I, O] <: PureStream[I, O, DD]](using ev: O <:< PureStream[I, B, DD]): CC[I, B] = flatMap(ev)
+  def flatten[B](using ev: O <:< PureStream[I, B, CC]): CC[I, B] = flatMap(ev)
 
 
-  def collect[B](pf: PartialFunction[O, B]): CC[I, B]
+  def collect[B](pf: O ~> B): CC[I, B]
 
 
   def zipWithIndex: CC[I, (O, Int)]
@@ -54,14 +53,5 @@ trait PureStream[I, O, CC[_, O] <: PureStream[_, O, CC]] extends Stream[I, O, CC
 
 
   def foreach(f: O => Unit): Unit
-
-
-  //TODO move to blocking stream later.
-  def spinWait(waitFunc: => Unit = Thread.onSpinWait()): Option[O] = {
-    var capture: Option[O] = None
-    take(1).foreach { o => capture = Some(o) }
-    while (capture.isEmpty) waitFunc
-    capture
-  }
 
 }

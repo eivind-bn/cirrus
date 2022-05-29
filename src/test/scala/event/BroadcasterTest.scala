@@ -17,50 +17,50 @@ class BroadcasterTest extends AnyWordSpec {
         val broadcaster = Broadcast[String]
 
         assertResult(Some(foo)){
-          broadcaster.fireEvent(foo)
+          broadcaster.dispatch(foo)
         }
 
         assertResult(Some("FOO")){
-          broadcaster.map(_.toUpperCase).fireEvent(foo)
+          broadcaster.map(_.toUpperCase).dispatch(foo)
         }
         assertResult(Some("foo")){
-          broadcaster.collect{ case s => s.toLowerCase }.fireEvent(foo)
+          broadcaster.collect{ case s => s.toLowerCase }.dispatch(foo)
         }
         assertResult(Some(foo)){
-          broadcaster.tapEach(identity).fireEvent(foo)
+          broadcaster.tapEach(identity).dispatch(foo)
         }
         assertResult(Some("Foo Bar")){
-          broadcaster.scanLeft(foo)((x,y) => s"$x $y").fireEvent(bar)
+          broadcaster.scanLeft(foo)((x,y) => s"$x $y").dispatch(bar)
         }
         assertResult(List((foo,0),(bar,1),(baz,2))){
-          List(foo, bar, baz).flatMap(broadcaster.zipWithIndex.fireEvent)
+          List(foo, bar, baz).flatMap(broadcaster.zipWithIndex.dispatch)
         }
         assertResult(Some(42)){
-          broadcaster.flatMap(_ => Report[String].map(_.toInt)).fireEvent("42")
+          broadcaster.flatMap(_ => Broadcast[String].map(_.toInt)).dispatch("42")
         }
         assertResult(Some(42)){
-          broadcaster.map(_ => Report[String].map(_.toInt)).flatten.fireEvent("42")
+          broadcaster.map(_ => Broadcast[String].map(_.toInt)).flatten.dispatch("42")
         }
         assertResult(Some(foo)){
-          broadcaster.take(5).fireEvent(foo)
+          broadcaster.take(5).dispatch(foo)
         }
         assertResult(Some(foo)){
-          broadcaster.slice(0,1).fireEvent(foo)
+          broadcaster.slice(0,1).dispatch(foo)
         }
         assertResult(Some(foo)){
-          broadcaster.takeWhile(_ => true).fireEvent(foo)
+          broadcaster.takeWhile(_ => true).dispatch(foo)
         }
         assertResult(Some(foo)){
-          broadcaster.dropWhile(_ => false).fireEvent(foo)
+          broadcaster.dropWhile(_ => false).dispatch(foo)
         }
         assertResult(Some(foo)){
-          broadcaster.filter(_ => true).fireEvent(foo)
+          broadcaster.filter(_ => true).dispatch(foo)
         }
         assertResult(Some(foo)){
-          broadcaster.filterNot(_ => false).fireEvent(foo)
+          broadcaster.filterNot(_ => false).dispatch(foo)
         }
         assertResult(Some(foo)){
-          broadcaster.drop(0).fireEvent(foo)
+          broadcaster.drop(0).dispatch(foo)
         }
 
 
@@ -70,46 +70,46 @@ class BroadcasterTest extends AnyWordSpec {
         val broadcaster = Broadcast[String]
 
         assertResult(None){
-          broadcaster.filter(_ => false).fireEvent(foo)
+          broadcaster.filter(_ => false).dispatch(foo)
         }
         assertResult(List(foo,baz)){
-          List(foo,bar,baz).flatMap(broadcaster.filterNot(_ == bar).fireEvent)
+          List(foo,bar,baz).flatMap(broadcaster.filterNot(_ == bar).dispatch)
         }
         assertResult(List(bar)){
-          List(foo,bar,baz).flatMap(broadcaster.filter(_ == bar).fireEvent)
+          List(foo,bar,baz).flatMap(broadcaster.filter(_ == bar).dispatch)
         }
         assertResult(List(foo)){
-          List(foo,bar,baz).flatMap(broadcaster.take(1).fireEvent)
+          List(foo,bar,baz).flatMap(broadcaster.take(1).dispatch)
         }
         assertResult(List(bar,baz)){
-          List(foo,bar,baz).flatMap(broadcaster.drop(1).fireEvent)
+          List(foo,bar,baz).flatMap(broadcaster.drop(1).dispatch)
         }
         assertResult(List(foo)){
-          List(foo,bar,baz).flatMap(broadcaster.takeWhile(_.contains("o")).fireEvent)
+          List(foo,bar,baz).flatMap(broadcaster.takeWhile(_.contains("o")).dispatch)
         }
         assertResult(List(bar,baz)){
-          List(foo,bar,baz).flatMap(broadcaster.dropWhile(_.contains("o")).fireEvent)
+          List(foo,bar,baz).flatMap(broadcaster.dropWhile(_.contains("o")).dispatch)
         }
         assertResult(List("BAZ")){
-          List(foo,bar,baz).flatMap(broadcaster.collect{ case s if s == baz => s.toUpperCase }.fireEvent)
+          List(foo,bar,baz).flatMap(broadcaster.collect{ case s if s == baz => s.toUpperCase }.dispatch)
         }
         assertResult((0 until 30) -> (0 to 50)){
           val (a,b) = Broadcast[Int].splitAt(30)
-          (0 to 50).flatMap(a.fireEvent) -> (0 to 50).flatMap(b.fireEvent)
+          (0 to 50).flatMap(a.dispatch) -> (0 to 50).flatMap(b.dispatch)
         }
         assertResult((0 until 20) -> (0 to 50)){
           val (a,b) = Broadcast[Int].span(int => int < 20 || int > 30)
-          (0 to 50).flatMap(a.fireEvent) -> (0 to 50).flatMap(b.fireEvent)
+          (0 to 50).flatMap(a.dispatch) -> (0 to 50).flatMap(b.dispatch)
         }
         assertResult(List(foo) -> List(foo,baz)){
           val otherBroadcaster = Report[String].filter(s => s == foo || s == baz)
-          List(foo,bar,baz).flatMap(broadcaster.filter(_ == foo).prepended(otherBroadcaster).fireEvent) ->
-            List(foo,bar,baz).flatMap(otherBroadcaster.fireEvent)
+          List(foo,bar,baz).flatMap(broadcaster.filter(_ == foo).prepended(otherBroadcaster).dispatch) ->
+            List(foo,bar,baz).flatMap(otherBroadcaster.dispatch)
         }
         assertResult(List(foo) -> List(foo,baz)){
           val otherBroadcaster = Report[String].filter(s => s == foo || s == baz)
-          List(foo,bar,baz).flatMap(broadcaster.filter(_ == foo).appended(otherBroadcaster).fireEvent) ->
-            List(foo,bar,baz).flatMap(otherBroadcaster.fireEvent)
+          List(foo,bar,baz).flatMap(broadcaster.filter(_ == foo).appended(otherBroadcaster).dispatch) ->
+            List(foo,bar,baz).flatMap(otherBroadcaster.dispatch)
         }
       }
 
@@ -119,7 +119,7 @@ class BroadcasterTest extends AnyWordSpec {
 
         broadcast.tapEach(_ => counter += 1)
         broadcast.foreach(_ => counter += 1)
-        broadcast.map(_ => counter += 1).fireEvent("Foo")
+        broadcast.map(_ => counter += 1).dispatch("Foo")
 
         assert(counter == 3)
 
@@ -127,7 +127,7 @@ class BroadcasterTest extends AnyWordSpec {
           .tapEach(_ => counter += 1)
           .map(_.toUpperCase)
           .collect{ case _ => counter += 1; 42 }
-          .fireEvent("Foo")
+          .dispatch("Foo")
 
         assert(counter == 8)
 
@@ -136,12 +136,12 @@ class BroadcasterTest extends AnyWordSpec {
         a.tapEach(_ => counter += 1)
 
         (1 to 10).foreach{_ =>
-          a.fireEvent("Foo")
+          a.dispatch("Foo")
         }
         assert(counter == 62)
 
         (1 to 10).foreach{_ =>
-          b.tapEach(_ => counter += 1).fireEvent("Bar")
+          b.tapEach(_ => counter += 1).dispatch("Bar")
         }
         assert(counter == 167)
 
@@ -157,11 +157,11 @@ class BroadcasterTest extends AnyWordSpec {
       extension (event: Broadcaster[Int,_])
         def run(iter: Int, exp: Int): Unit = {
           expected += exp
-          (0 until iter).flatMap(event.fireEvent).foreach{_ =>
+          (0 until iter).flatMap(event.dispatch).foreach{ _ =>
             counter += 1
           }
         }
-        def fail(iter: Int): Unit = (0 until iter).flatMap(event.fireEvent).foreach{ _ =>
+        def fail(iter: Int): Unit = (0 until iter).flatMap(event.dispatch).foreach{ _ =>
           org.scalatest.Assertions.fail(s"Expected count '$expected' and actual '$counter' mismatch")
         }
 

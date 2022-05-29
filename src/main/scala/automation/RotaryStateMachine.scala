@@ -3,9 +3,9 @@ package automation
 import combinator.{ImpureStream, PureStream}
 import event.*
 
-trait RotaryStateMachine[I,O,CC[I,O] <: Event[I,O,CC]] extends StateMachine[I,O,CC] { parent =>
+trait RotaryStateMachine[I,O,CC[I,O] <: EventStream[I,O,CC]] extends StateMachine[I,O,CC] { parent =>
 
-  export eventLoop.fireEvent
+  export eventLoop.dispatch
   protected val eventLoop: CC[I,O]
 
   trait Tail[I1,O1,S] extends RotaryStateMachine[I1,O1,CC]{
@@ -15,12 +15,12 @@ trait RotaryStateMachine[I,O,CC[I,O] <: Event[I,O,CC]] extends StateMachine[I,O,
   }
 
 
-  def prepended[B, DD[_, O] <: Event[_, O, DD]](other: Event[B, I, DD]): RotaryStateMachine[B,O,CC] = new RotaryStateMachine[B,O,CC] {
+  def prepended[B, DD[_, O] <: EventStream[_, O, DD]](other: EventStream[B, I, DD]): RotaryStateMachine[B,O,CC] = new RotaryStateMachine[B,O,CC] {
     override protected val eventLoop: CC[B, O] = parent.eventLoop.prepended(other)
   }
 
 
-  def appended[B,DD[_,O] <: Event[_,O,DD]](other: Event[O,B,DD]): RotaryStateMachine[I,B,CC] = new RotaryStateMachine[I,B,CC] {
+  def appended[B,DD[_,O] <: EventStream[_,O,DD]](other: EventStream[O,B,DD]): RotaryStateMachine[I,B,CC] = new RotaryStateMachine[I,B,CC] {
     override protected val eventLoop: CC[I, B] = parent.eventLoop.appended(other)
   }
 

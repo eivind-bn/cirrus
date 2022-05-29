@@ -13,52 +13,52 @@ class ReporterTest extends AnyWordSpec {
       val intReporter = Report[Int]
 
       assertResult(Some("Foo")){
-        stringReporter.fireEvent("Foo")
+        stringReporter.dispatch("Foo")
       }
       assertResult(0 to 100){
-        (0 to 100).flatMap(intReporter.fireEvent)
+        (0 to 100).flatMap(intReporter.dispatch)
       }
       assertResult(Some("FOO")){
-        stringReporter.map(_.toUpperCase).fireEvent("Foo")
+        stringReporter.map(_.toUpperCase).dispatch("Foo")
       }
       assertResult(Some("foo")){
-        stringReporter.collect{ case s => s.toLowerCase }.fireEvent("Foo")
+        stringReporter.collect{ case s => s.toLowerCase }.dispatch("Foo")
       }
       assertResult(Some("Foo")){
-        stringReporter.tapEach(identity).fireEvent("Foo")
+        stringReporter.tapEach(identity).dispatch("Foo")
       }
       assertResult(Some("Foo Bar")){
-        stringReporter.scanLeft("Foo")((x,y) => s"$x $y").fireEvent("Bar")
+        stringReporter.scanLeft("Foo")((x,y) => s"$x $y").dispatch("Bar")
       }
       assertResult(List(("Foo",0),("Bar",1),("Baz",2))){
-        List("Foo", "Bar", "Baz").flatMap(stringReporter.zipWithIndex.fireEvent)
+        List("Foo", "Bar", "Baz").flatMap(stringReporter.zipWithIndex.dispatch)
       }
       assertResult(Some(42)){
-        stringReporter.flatMap(_ => Report[String].map(_.toInt)).fireEvent("42")
+        stringReporter.flatMap(_ => Report[String].map(_.toInt)).dispatch("42")
       }
       assertResult(Some(42)){
-        stringReporter.map(_ => Report[String].map(_.toInt)).flatten.fireEvent("42")
+        stringReporter.map(_ => Report[String].map(_.toInt)).flatten.dispatch("42")
       }
       assertResult(Some("Foo")){
-        stringReporter.take(5).fireEvent("Foo")
+        stringReporter.take(5).dispatch("Foo")
       }
       assertResult(Some("Foo")){
-        stringReporter.slice(0,1).fireEvent("Foo")
+        stringReporter.slice(0,1).dispatch("Foo")
       }
       assertResult(Some("Foo")){
-        stringReporter.takeWhile(_ => true).fireEvent("Foo")
+        stringReporter.takeWhile(_ => true).dispatch("Foo")
       }
       assertResult(Some("Foo")){
-        stringReporter.dropWhile(_ => false).fireEvent("Foo")
+        stringReporter.dropWhile(_ => false).dispatch("Foo")
       }
       assertResult(Some("Foo")){
-        stringReporter.filter(_ => true).fireEvent("Foo")
+        stringReporter.filter(_ => true).dispatch("Foo")
       }
       assertResult(Some("Foo")){
-        stringReporter.filterNot(_ => false).fireEvent("Foo")
+        stringReporter.filterNot(_ => false).dispatch("Foo")
       }
       assertResult(Some("Foo")){
-        stringReporter.drop(0).fireEvent("Foo")
+        stringReporter.drop(0).dispatch("Foo")
       }
     }
 
@@ -67,51 +67,51 @@ class ReporterTest extends AnyWordSpec {
       val reporter = Report[String]
 
       assertResult(List("Foo","Baz")){
-        List("Foo","Bar","Baz").flatMap(reporter.filterNot(_ == "Bar").fireEvent)
+        List("Foo","Bar","Baz").flatMap(reporter.filterNot(_ == "Bar").dispatch)
       }
       assertResult(List("Bar")){
-        List("Foo","Bar","Baz").flatMap(reporter.filter(_ == "Bar").fireEvent)
+        List("Foo","Bar","Baz").flatMap(reporter.filter(_ == "Bar").dispatch)
       }
       assertResult(List("Foo")){
-        List("Foo","Bar","Baz").flatMap(reporter.take(1).fireEvent)
+        List("Foo","Bar","Baz").flatMap(reporter.take(1).dispatch)
       }
       assertResult(List("Bar","Baz")){
-        List("Foo","Bar","Baz").flatMap(reporter.drop(1).fireEvent)
+        List("Foo","Bar","Baz").flatMap(reporter.drop(1).dispatch)
       }
       assertResult(List("Foo")){
-        List("Foo","Bar","Baz").flatMap(reporter.takeWhile(_.contains("o")).fireEvent)
+        List("Foo","Bar","Baz").flatMap(reporter.takeWhile(_.contains("o")).dispatch)
       }
       assertResult(List("Bar","Baz")){
-        List("Foo","Bar","Baz").flatMap(reporter.dropWhile(_.contains("o")).fireEvent)
+        List("Foo","Bar","Baz").flatMap(reporter.dropWhile(_.contains("o")).dispatch)
       }
       assertResult(List("BAZ")){
-        List("Foo","Bar","Baz").flatMap(reporter.collect{ case s if s == "Baz" => s.toUpperCase }.fireEvent)
+        List("Foo","Bar","Baz").flatMap(reporter.collect{ case s if s == "Baz" => s.toUpperCase }.dispatch)
       }
       assertResult(List("Foo") -> List("Foo","Bar","Baz")){
         val (a,b) = reporter.splitAt(1)
-        List("Foo","Bar","Baz").flatMap(a.fireEvent) -> List("Foo","Bar","Baz").flatMap(b.fireEvent)
+        List("Foo","Bar","Baz").flatMap(a.dispatch) -> List("Foo","Bar","Baz").flatMap(b.dispatch)
       }
       assertResult(List("Foo") -> List("Foo","Bar","Baz")){
         val (a,b) = reporter.span(!_.contains("a"))
-        List("Foo","Bar","Baz").flatMap(a.fireEvent) -> List("Foo","Bar","Baz").flatMap(b.fireEvent)
+        List("Foo","Bar","Baz").flatMap(a.dispatch) -> List("Foo","Bar","Baz").flatMap(b.dispatch)
       }
       assertResult((0 until 30) -> (0 to 50)){
         val (a,b) = Report[Int].splitAt(30)
-        (0 to 50).flatMap(a.fireEvent) -> (0 to 50).flatMap(b.fireEvent)
+        (0 to 50).flatMap(a.dispatch) -> (0 to 50).flatMap(b.dispatch)
       }
       assertResult((0 until 20) -> (0 to 50)){
         val (a,b) = Report[Int].span(int => int < 20 || int > 30)
-        (0 to 50).flatMap(a.fireEvent) -> (0 to 50).flatMap(b.fireEvent)
+        (0 to 50).flatMap(a.dispatch) -> (0 to 50).flatMap(b.dispatch)
       }
       assertResult(List("Foo") -> List("Foo","Baz")){
         val otherReporter = Report[String].filter(s => s == "Foo" || s == "Baz")
-        List("Foo","Bar","Baz").flatMap(reporter.filter(_ == "Foo").prepended(otherReporter).fireEvent) ->
-          List("Foo","Bar","Baz").flatMap(otherReporter.fireEvent)
+        List("Foo","Bar","Baz").flatMap(reporter.filter(_ == "Foo").prepended(otherReporter).dispatch) ->
+          List("Foo","Bar","Baz").flatMap(otherReporter.dispatch)
       }
       assertResult(List("Foo") -> List("Foo","Baz")){
         val otherReporter = Report[String].filter(s => s == "Foo" || s == "Baz")
-        List("Foo","Bar","Baz").flatMap(reporter.filter(_ == "Foo").appended(otherReporter).fireEvent) ->
-          List("Foo","Bar","Baz").flatMap(otherReporter.fireEvent)
+        List("Foo","Bar","Baz").flatMap(reporter.filter(_ == "Foo").appended(otherReporter).dispatch) ->
+          List("Foo","Bar","Baz").flatMap(otherReporter.dispatch)
       }
     }
 
@@ -129,7 +129,7 @@ class ReporterTest extends AnyWordSpec {
         .tapEach(_ => counter += 1)
         .map(_.toUpperCase)
         .collect{ case _ => counter += 1; 42 }
-        .fireEvent("Foo")
+        .dispatch("Foo")
 
       assert(counter == 2)
 
@@ -138,12 +138,12 @@ class ReporterTest extends AnyWordSpec {
         .span{ case (str, i) => i < 4 }
 
       (1 to 10).foreach{_ =>
-        a.tapEach(_ => counter += 1).fireEvent("Foo")
+        a.tapEach(_ => counter += 1).dispatch("Foo")
       }
       assert(counter == 6)
 
       (1 to 10).foreach{_ =>
-        b.tapEach(_ => counter += 1).fireEvent("Bar")
+        b.tapEach(_ => counter += 1).dispatch("Bar")
       }
       assert(counter == 16)
     }
@@ -157,11 +157,11 @@ class ReporterTest extends AnyWordSpec {
       extension (event: Reporter[Int,_])
         def run(iter: Int, exp: Int): Unit = {
           expected += exp
-          (0 until iter).flatMap(event.fireEvent).foreach{_ =>
+          (0 until iter).flatMap(event.dispatch).foreach{ _ =>
             counter += 1
           }
         }
-        def fail(iter: Int): Unit = (0 until iter).flatMap(event.fireEvent).foreach{ _ =>
+        def fail(iter: Int): Unit = (0 until iter).flatMap(event.dispatch).foreach{ _ =>
           org.scalatest.Assertions.fail(s"Expected count '$expected' and actual '$counter' mismatch")
         }
 
