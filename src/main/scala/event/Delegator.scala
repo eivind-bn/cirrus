@@ -100,10 +100,8 @@ class Delegator[O] extends EventStream[O,O,[_,X] =>> Delegator[X]] { delegator =
   }
 
 
-  override def flatMap[B](f: O => PureStream[O,B,[_,X] =>> Delegator[X]]): Delegator[B] = new Relay[B]{
-    override def process(data: O): Unit = f(data).foreach{ b =>
-      dispatch(b)
-    }
+  override def flatMap[B, DD[_, O] <: PureStream[_, O, DD]](f: O => PureStream[O,B,DD]): Delegator[B] = new Relay[B]{
+    override def process(data: O): Unit = f(data).foreach{ b => dispatch(b) }
   }
 
 

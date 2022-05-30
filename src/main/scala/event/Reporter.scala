@@ -5,13 +5,14 @@ import combinator.PureStream
 
 abstract class Reporter[I,O] extends EventStream[I,O,Reporter] { parent =>
 
+  override def prepended[B,DD[_,O] <: EventStream[_,O,DD]](other: EventStream[B, I, DD]): Reporter[B, O] =
+    (data: B) => other.dispatch(data)
+      .flatMap(parent.dispatch)
 
-  override def prepended[B,DD[_,O] <: EventStream[_,O,DD]](other: EventStream[B, I, DD]): Reporter[B, O] = (data: B) => other.dispatch(data)
-    .flatMap(parent.dispatch)
 
-
-  override def appended[B,DD[_,O] <: EventStream[_,O,DD]](other: EventStream[O, B, DD]): Reporter[I, B] = (data: I) => parent.dispatch(data)
-    .flatMap(other.dispatch)
+  override def appended[B,DD[_,O] <: EventStream[_,O,DD]](other: EventStream[O, B, DD]): Reporter[I, B] =
+    (data: I) => parent.dispatch(data)
+      .flatMap(other.dispatch)
 
 
   override def scanLeft[B](z: B)(op: (B, O) => B): Reporter[I,B] = (data: I) => parent.dispatch(data)
@@ -64,11 +65,15 @@ abstract class Reporter[I,O] extends EventStream[I,O,Reporter] { parent =>
     .map(f)
 
 
-  override def flatMap[B](f: O => PureStream[I, B, Reporter]): Reporter[I, B] = (data: I) => parent.dispatch(data)
-    .map{ o => f(o) }
-    .flatMap{
-      case event: EventStream[I,B,_] => event.dispatch(data)
+  //TODO remove reflective call
+  override def flatMap[B, DD[_, O] <: PureStream[_, O, DD]](f: O => PureStream[I, B, DD]): Reporter[I,B] =
+    (data: I) => parent.dispatch(data)
+    .map { o => f(o) }
+    .flatMap {
+      case eventStream: EventStream[I, B, DD] => eventStream.dispatch(data)
+      case pureStream => ??? //Not supported
     }
+
 
   override def collect[B](pf: O ~> B): Reporter[I, B] = (data: I) => parent.dispatch(data)
     .collect(pf)
@@ -85,10 +90,10 @@ abstract class Reporter[I,O] extends EventStream[I,O,Reporter] { parent =>
     var flag = true
 
     val left: Reporter[I,O] = (data: I) => parent.dispatch(data)
-      .filter{ o => if flag then flag = p(o); flag }
+      .filter { o => if flag then flag = p(o); flag }
 
     val right: Reporter[I,O] = (data: I) => parent.dispatch(data)
-      .filterNot{ o => flag }
+      .filterNot { o => flag }
 
     left -> right
   }
@@ -98,10 +103,10 @@ abstract class Reporter[I,O] extends EventStream[I,O,Reporter] { parent =>
     var i = -1
 
     val left: Reporter[I,O] = (data: I) => parent.dispatch(data)
-      .filter{ o => i += 1; i < n }
+      .filter { o => i += 1; i < n }
 
     val right: Reporter[I,O] = (data: I) => parent.dispatch(data)
-      .filterNot{ o => i < n }
+      .filterNot { o => i < n }
 
     left -> right
   }

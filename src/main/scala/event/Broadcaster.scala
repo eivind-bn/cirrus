@@ -10,7 +10,7 @@ abstract class Broadcaster[I,O] extends EventStream[I,O,Broadcaster] { parent =>
   protected val reporter: Reporter[I, O]
 
 
-  trait Relay[I1, O1] extends Broadcaster[I, O1] {
+  trait Relay[O1] extends Broadcaster[I, O1] {
     var last: Option[O1] = None
     def getAndReset[T]: PartialFunction[T, O1] = { case _ if last.isDefined => val temp = last.get; last = None; temp }
     override val reporter: Reporter[I, O1] = parent.reporter.collect(getAndReset)
@@ -32,12 +32,12 @@ abstract class Broadcaster[I,O] extends EventStream[I,O,Broadcaster] { parent =>
   }
 
 
-  override def scanLeft[B](z: B)(op: (B, O) => B): Broadcaster[I, B] = new Relay[I, B] {
+  override def scanLeft[B](z: B)(op: (B, O) => B): Broadcaster[I, B] = new Relay[B] {
     override def transformer: PartialFunction[O, B] = o => op(z, o)
   }
 
 
-  override def filter(pred: O => Boolean): Broadcaster[I, O] = new Relay[I, O] {
+  override def filter(pred: O => Boolean): Broadcaster[I, O] = new Relay[O] {
     override def transformer: PartialFunction[O, O] = {
       case o if pred(o) => o
     }
@@ -47,7 +47,7 @@ abstract class Broadcaster[I,O] extends EventStream[I,O,Broadcaster] { parent =>
   override def filterNot(pred: O => Boolean): Broadcaster[I, O] = filter(pred.andThen(!_))
 
 
-  override def take(n: Int): Broadcaster[I, O] = new Relay[I, O] {
+  override def take(n: Int): Broadcaster[I, O] = new Relay[O] {
     var i: Int = 0
     override def transformer: PartialFunction[O, O] = {
       case o if i < n => i += 1; o
@@ -55,7 +55,7 @@ abstract class Broadcaster[I,O] extends EventStream[I,O,Broadcaster] { parent =>
   }
 
 
-  override def takeWhile(p: O => Boolean): Broadcaster[I, O] = new Relay[I, O] {
+  override def takeWhile(p: O => Boolean): Broadcaster[I, O] = new Relay[O] {
     var flag = true
     override def transformer: PartialFunction[O, O] = new PartialFunction[O, O] {
       override def isDefinedAt(x: O): Boolean = flag && {
@@ -67,7 +67,7 @@ abstract class Broadcaster[I,O] extends EventStream[I,O,Broadcaster] { parent =>
   }
 
 
-  override def drop(n: Int): Broadcaster[I, O] = new Relay[I, O] {
+  override def drop(n: Int): Broadcaster[I, O] = new Relay[O] {
     var i: Int = 0
     override def transformer: PartialFunction[O, O] = {
       case o if i >= n => o
@@ -78,7 +78,7 @@ abstract class Broadcaster[I,O] extends EventStream[I,O,Broadcaster] { parent =>
   }
 
 
-  override def dropWhile(p: O => Boolean): Broadcaster[I, O] = new Relay[I, O] {
+  override def dropWhile(p: O => Boolean): Broadcaster[I, O] = new Relay[O] {
     var flag = false
     override def transformer: PartialFunction[O, O] = new PartialFunction[O, O] {
       override def isDefinedAt(x: O): Boolean = flag || {
@@ -90,7 +90,7 @@ abstract class Broadcaster[I,O] extends EventStream[I,O,Broadcaster] { parent =>
   }
 
 
-  override def slice(from: Int, until: Int): Broadcaster[I, O] = new Relay[I, O] {
+  override def slice(from: Int, until: Int): Broadcaster[I, O] = new Relay[O] {
     var i: Int = 0
     override def transformer: PartialFunction[O, O] = new PartialFunction[O, O] {
       override def isDefinedAt(x: O): Boolean = i match {
@@ -105,12 +105,12 @@ abstract class Broadcaster[I,O] extends EventStream[I,O,Broadcaster] { parent =>
   }
 
 
-  override def map[B](f: O => B): Broadcaster[I, B] = new Relay[I, B] {
+  override def map[B](f: O => B): Broadcaster[I, B] = new Relay[B] {
     override def transformer: PartialFunction[O, B] = o => f(o)
   }
 
 
-  override def flatMap[B](f: O => PureStream[I, B, Broadcaster]): Broadcaster[I, B] = new Relay[I, B] {
+  override def flatMap[B, DD[_, O] <: PureStream[_, O, DD]](f: O => PureStream[I, B, DD]): Broadcaster[I, B] = new Relay[B] {
     override val reporter: Reporter[I, B] = (data: I) => parent.reporter.dispatch(data)
       .map { o => f(o) }
       .flatMap {
@@ -124,12 +124,12 @@ abstract class Broadcaster[I,O] extends EventStream[I,O,Broadcaster] { parent =>
   }
 
 
-  override def collect[B](pf: O ~> B): Broadcaster[I, B] = new Relay[I, B] {
+  override def collect[B](pf: O ~> B): Broadcaster[I, B] = new Relay[B] {
     override def transformer: PartialFunction[O, B] = pf
   }
 
 
-  override def zipWithIndex: Broadcaster[I, (O, Int)] = new Relay[I, (O, Int)] {
+  override def zipWithIndex: Broadcaster[I, (O, Int)] = new Relay[(O, Int)] {
     var i: Int = -1
     override def transformer: PartialFunction[O, (O, Int)] = new PartialFunction[O, (O, Int)] {
       override def isDefinedAt(x: O): Boolean = true
@@ -148,14 +148,14 @@ abstract class Broadcaster[I,O] extends EventStream[I,O,Broadcaster] { parent =>
 
     val (leftReporter, rightReporter) = parent.reporter.span(o => flag && { flag = p(o); flag })
 
-    val left = new Relay[I, O] {
+    val left = new Relay[O] {
       override def transformer: PartialFunction[O, O] = identity(_)
 
       override val delegator: Delegator[O] = leftDelegate.tapEach { o => last = Some(o) }
       override val reporter: Reporter[I, O] = leftReporter.collect(getAndReset)
     }
 
-    val right = new Relay[I, O] {
+    val right = new Relay[O] {
       override def transformer: PartialFunction[O, O] = identity(_)
 
       override val delegator: Delegator[O] = rightDelegate.tapEach { o => last = Some(o) }
@@ -171,14 +171,14 @@ abstract class Broadcaster[I,O] extends EventStream[I,O,Broadcaster] { parent =>
     val (leftDelegate, rightDelegate) = parent.delegator.splitAt(n)
     val (leftReporter, rightReporter) = parent.reporter.splitAt(n)
 
-    val left = new Relay[I, O] {
+    val left = new Relay[O] {
       override def transformer: PartialFunction[O, O] = identity(_)
 
       override val delegator: Delegator[O] = leftDelegate.tapEach { o => last = Some(o) }
       override val reporter: Reporter[I, O] = leftReporter.collect(getAndReset)
     }
 
-    val right = new Relay[I, O] {
+    val right = new Relay[O] {
       override def transformer: PartialFunction[O, O] = identity(_)
 
       override val delegator: Delegator[O] = rightDelegate.tapEach { o => last = Some(o) }
@@ -189,14 +189,14 @@ abstract class Broadcaster[I,O] extends EventStream[I,O,Broadcaster] { parent =>
   }
 
 
-  override def tapEach[U](f: O => U): Broadcaster[I, O] = new Relay[I, O] {
+  override def tapEach[U](f: O => U): Broadcaster[I, O] = new Relay[O] {
     override def transformer: PartialFunction[O, O] = o => {
       f(o); o
     }
   }
 
 
-  override def foreach(f: O => Unit): Unit = new Relay[I, Unit] {
+  override def foreach(f: O => Unit): Unit = new Relay[Unit] {
     override def transformer: PartialFunction[O, Unit] = f(_)
   }
   
