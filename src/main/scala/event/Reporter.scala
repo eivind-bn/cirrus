@@ -3,7 +3,7 @@ package event
 import combinator.PureStream
 
 
-trait Reporter[I,O] extends EventStream[I,O,Reporter] { parent =>
+abstract class Reporter[I,O] extends EventStream[I,O,Reporter] { parent =>
 
 
   override def prepended[B,DD[_,O] <: EventStream[_,O,DD]](other: EventStream[B, I, DD]): Reporter[B, O] = (data: B) => other.dispatch(data)

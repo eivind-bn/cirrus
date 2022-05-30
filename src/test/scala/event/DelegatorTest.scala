@@ -109,7 +109,8 @@ class DelegatorTest extends AnyWordSpec {
     "qualify for garbage collection once exhausted" in {
 
       // Created anonymous instance
-      val delegator: Delegator[Int] = new Delegator[Int]
+      val delegator: Delegator[Int] = Delegate[Int]
+      println(classOf[Delegator[Int]])
 
       // Get protected relays variable through reflection.
       val relaysField: Field = classOf[Delegator[Int]].getDeclaredField("relays")
