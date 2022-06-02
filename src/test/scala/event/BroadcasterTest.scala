@@ -38,9 +38,9 @@ class BroadcasterTest extends AnyWordSpec {
         assertResult(Some(42)){
           broadcaster.flatMap(_ => Broadcast[String].map(_.toInt)).dispatch("42")
         }
-        assertResult(Some(42)){
-          broadcaster.map(_ => Broadcast[String].map(_.toInt)).flatten.dispatch("42")
-        }
+//        assertResult(Some(42)){
+//          broadcaster.map(_ => Broadcast[String].map(_.toInt)).flatten.dispatch("42")
+//        }
         assertResult(Some(foo)){
           broadcaster.take(5).dispatch(foo)
         }
@@ -195,7 +195,7 @@ class BroadcasterTest extends AnyWordSpec {
       c.run(500,50)
       d.run(500,500)
       root.flatMap(_ => root).run(500,500)
-      root.map(_ => root).flatten.run(500,500)
+//      root.map(_ => root).flatten.run(500,500)
 
       val newRoot = Broadcast[Int]
       newRoot.prepended(root).run(500,500)

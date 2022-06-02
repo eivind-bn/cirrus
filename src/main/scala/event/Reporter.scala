@@ -5,17 +5,17 @@ import combinator.PureStream
 
 abstract class Reporter[I,O] extends EventStream[I,O,Reporter] { parent =>
 
-  override def prepended[B,DD[_,O] <: EventStream[_,O,DD]](other: EventStream[B, I, DD]): Reporter[B, O] =
+  override def prepended[B,DD[_,O] <: EventStream[_,O,DD]](other: EventStream[B,I,DD]): Reporter[B,O] =
     (data: B) => other.dispatch(data)
       .flatMap(parent.dispatch)
 
 
-  override def appended[B,DD[_,O] <: EventStream[_,O,DD]](other: EventStream[O, B, DD]): Reporter[I, B] =
+  override def appended[B,DD[_,O] <: EventStream[_,O,DD]](other: EventStream[O,B,DD]): Reporter[I,B] =
     (data: I) => parent.dispatch(data)
       .flatMap(other.dispatch)
 
 
-  override def scanLeft[B](z: B)(op: (B, O) => B): Reporter[I,B] = (data: I) => parent.dispatch(data)
+  override def scanLeft[B](z: B)(op: (B,O) => B): Reporter[I,B] = (data: I) => parent.dispatch(data)
     .map { o => op(z, o) }
 
 
@@ -26,7 +26,7 @@ abstract class Reporter[I,O] extends EventStream[I,O,Reporter] { parent =>
   override def filterNot(pred: O => Boolean): Reporter[I,O] = filter(pred.andThen(!_))
 
 
-  override def take(n: Int): Reporter[I, O] = new Reporter[I,O] {
+  override def take(n: Int): Reporter[I,O] = new Reporter[I,O] {
     var i: Int = -1
     override def dispatch(data: I): Option[O] = parent.dispatch(data)
       .filter { _ => i += 1; i < n }
@@ -65,21 +65,24 @@ abstract class Reporter[I,O] extends EventStream[I,O,Reporter] { parent =>
     .map(f)
 
 
-  //TODO remove reflective call
-  override def flatMap[B, DD[_, O] <: PureStream[_, O, DD]](f: O => PureStream[I, B, DD]): Reporter[I,B] =
-    (data: I) => parent.dispatch(data)
-    .map { o => f(o) }
-    .flatMap {
-      case eventStream: EventStream[I, B, DD] => eventStream.dispatch(data)
-      case pureStream => ??? //Not supported
+  //TODO remove reflective call.
+  override def flatMap[B,DD[_,O] <: PureStream[_,O,DD]](f: O => PureStream[I,B,DD]): Reporter[I,B] = new Reporter[I,B]{
+
+    val relay: Reporter[I, O] = parent.tapEach{ o =>
+      f(o).foreach{ b =>
+        
+      }
     }
 
+    override def dispatch(data: I): Option[B] = relay.dispatch(data)
+  }
 
-  override def collect[B](pf: O ~> B): Reporter[I, B] = (data: I) => parent.dispatch(data)
+
+  override def collect[B](pf: O ~> B): Reporter[I,B] = (data: I) => parent.dispatch(data)
     .collect(pf)
 
 
-  override def zipWithIndex: Reporter[I,(O,Int)] = new Reporter[I,(O, Int)] {
+  override def zipWithIndex: Reporter[I,(O,Int)] = new Reporter[I,(O,Int)] {
     var i: Int = -1
     override def dispatch(data: I): Option[(O,Int)] = parent.dispatch(data)
       .zip{i += 1; Some(i)}

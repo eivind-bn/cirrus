@@ -25,12 +25,12 @@ class Delegator[O] extends EventStream[O,O,[_,X] =>> Delegator[X]] { delegator =
   }
 
 
-  override def appended[B,DD[_,O] <: EventStream[_,O,DD]](other: EventStream[O, B, DD]): Delegator[B] = new Delegator[B]{
+  override def appended[B,DD[_,O] <: EventStream[_,O,DD]](other: EventStream[O,B,DD]): Delegator[B] = new Delegator[B]{
     delegator.foreach{ o => other.dispatch(o) }
   }
 
 
-  override def scanLeft[B](z: B)(op: (B, O) => B): Delegator[B] = new Relay[B]{
+  override def scanLeft[B](z: B)(op: (B,O) => B): Delegator[B] = new Relay[B]{
     override def process(data: O): Unit = dispatch(op(z,data))
   }
 
@@ -100,7 +100,7 @@ class Delegator[O] extends EventStream[O,O,[_,X] =>> Delegator[X]] { delegator =
   }
 
 
-  override def flatMap[B, DD[_, O] <: PureStream[_, O, DD]](f: O => PureStream[O,B,DD]): Delegator[B] = new Relay[B]{
+  override def flatMap[B,DD[_,O] <: PureStream[_,O,DD]](f: O => PureStream[O,B,DD]): Delegator[B] = new Relay[B]{
     override def process(data: O): Unit = f(data).foreach{ b => dispatch(b) }
   }
 
@@ -111,7 +111,7 @@ class Delegator[O] extends EventStream[O,O,[_,X] =>> Delegator[X]] { delegator =
     }
   }
 
-  override def zipWithIndex: Delegator[(O, Int)] = new Relay[(O, Int)] {
+  override def zipWithIndex: Delegator[(O,Int)] = new Relay[(O,Int)] {
     var i = 0
     override def process(data: O): Unit = {
       dispatch(data -> i)
@@ -151,6 +151,9 @@ class Delegator[O] extends EventStream[O,O,[_,X] =>> Delegator[X]] { delegator =
 
     left -> right
   }
+
+
+  def noop: Delegator[O] = tapEach(identity)
 
 
   override def tapEach[U](f: O => U): Delegator[O] = new Relay[O]{

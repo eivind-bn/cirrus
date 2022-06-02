@@ -36,9 +36,9 @@ class ReporterTest extends AnyWordSpec {
       assertResult(Some(42)){
         stringReporter.flatMap(_ => Report[String].map(_.toInt)).dispatch("42")
       }
-      assertResult(Some(42)){
-        stringReporter.map(_ => Report[String].map(_.toInt)).flatten.dispatch("42")
-      }
+//      assertResult(Some(42)){
+//        stringReporter.map(_ => Report[String].map(_.toInt)).flatten.dispatch("42")
+//      }
       assertResult(Some("Foo")){
         stringReporter.take(5).dispatch("Foo")
       }
@@ -192,7 +192,7 @@ class ReporterTest extends AnyWordSpec {
       c.run(500,50)
       d.run(500,500)
       root.flatMap(_ => root).run(500,500)
-      root.map(_ => root).flatten.run(500,500)
+//      root.map(_ => root).flatten.run(500,500)
 
       val newRoot = Report[Int]
       newRoot.prepended(root).run(500,500)
