@@ -93,7 +93,7 @@ class DelegatorTest extends AnyWordSpec {
       c.increment(5)
       d.increment(iter - 5)
       root.flatMap(_ => root).increment(((iter*iter)/2) - iter/2)
-//      root.map(_ => root).flatten.increment(((iter*iter)/2) - iter/2)
+      root.map(_ => root).flatten.increment(((iter*iter)/2) - iter/2)
 
       val newRoot = Delegate[Int]
       newRoot.prepended(root).increment(iter)

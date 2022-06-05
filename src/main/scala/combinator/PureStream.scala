@@ -1,7 +1,7 @@
 package combinator
 
 
-trait PureStream[I, O, CC[_, O] <: PureStream[_, O, CC]] extends Stream[I, O, CC] { pure =>
+trait PureStream[I, O, CC[_,O] <: PureStream[_,O,CC]] extends Stream[I, O, CC] { pure =>
 
 
   def scanLeft[B](z: B)(op: (B, O) => B): CC[I, B]
@@ -31,10 +31,10 @@ trait PureStream[I, O, CC[_, O] <: PureStream[_, O, CC]] extends Stream[I, O, CC
   def map[B](f: O => B): CC[I, B]
 
 
-  def flatMap[B, DD[_, O] <: PureStream[_, O, DD]](f: O => PureStream[I, B, DD]): CC[I, B]
+  def flatMap[A, B, DD[_, O] <: PureStream[_, O, DD]](f: O => PureStream[A, B, DD]): CC[I, B]
 
 
-  def flatten[B, DD[_, O] <: PureStream[_, O, DD]](using ev: O <:< PureStream[I, B, DD]): CC[I, B] = flatMap(ev)
+  def flatten[A, B, DD[_, O] <: PureStream[_, O, DD]](using ev: O <:< PureStream[A, B, DD]): CC[I, B] = flatMap(ev)
 
 
   def collect[B](pf: O ~> B): CC[I, B]

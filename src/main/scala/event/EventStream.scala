@@ -2,8 +2,6 @@ package event
 
 import combinator.PureStream
 
-import scala.concurrent.ExecutionContext
-
 trait EventStream[I,O,CC[_,O] <: EventStream[_,O,CC]] extends PureStream[I,O,CC] {
 
 

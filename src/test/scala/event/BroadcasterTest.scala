@@ -35,12 +35,38 @@ class BroadcasterTest extends AnyWordSpec {
         assertResult(List((foo,0),(bar,1),(baz,2))){
           List(foo, bar, baz).flatMap(broadcaster.zipWithIndex.dispatch)
         }
-        assertResult(Some(42)){
-          broadcaster.flatMap(_ => Broadcast[String].map(_.toInt)).dispatch("42")
+        assertResult(0){
+          var result = 0
+          val otherBroadcaster = Broadcaster[Int]
+
+          broadcaster.flatMap(s => otherBroadcaster.map(_*s.toInt)).tapEach(int => result += int)
+          for(i <- 1 to 3) otherBroadcaster.dispatch(i)
+          result
         }
-//        assertResult(Some(42)){
-//          broadcaster.map(_ => Broadcast[String].map(_.toInt)).flatten.dispatch("42")
-//        }
+        assertResult(30){
+          var result = 0
+          val otherBroadcaster = Broadcaster[Int]
+
+          broadcaster.flatMap(s => otherBroadcaster.map(_*s.toInt)).tapEach(int => result += int).dispatch("5")
+          for(i <- 1 to 3) otherBroadcaster.dispatch(i)
+          result
+        }
+        assertResult(0){
+          var result = 0
+          val otherBroadcaster = Broadcaster[Int]
+
+          broadcaster.map(s => otherBroadcaster.map(_*s.toInt)).flatten.tapEach(int => result += int)
+          for(i <- 1 to 3) otherBroadcaster.dispatch(i)
+          result
+        }
+        assertResult(30){
+          var result = 0
+          val otherBroadcaster = Broadcaster[Int]
+
+          broadcaster.map(s => otherBroadcaster.map(_*s.toInt)).flatten.tapEach(int => result += int).dispatch("5")
+          for(i <- 1 to 3) otherBroadcaster.dispatch(i)
+          result
+        }
         assertResult(Some(foo)){
           broadcaster.take(5).dispatch(foo)
         }
@@ -195,7 +221,7 @@ class BroadcasterTest extends AnyWordSpec {
       c.run(500,50)
       d.run(500,500)
       root.flatMap(_ => root).run(500,500)
-//      root.map(_ => root).flatten.run(500,500)
+      root.map(_ => root).flatten.run(500,500)
 
       val newRoot = Broadcast[Int]
       newRoot.prepended(root).run(500,500)

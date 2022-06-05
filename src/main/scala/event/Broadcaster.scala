@@ -47,37 +47,21 @@ abstract class Broadcaster[I,O] extends EventStream[I,O,Broadcaster] { parent =>
 
   override def map[B](f: O => B): Broadcaster[I,B] = new Relay[B](_.map(f))
 
-  //TODO remove reflective call.
+  override def flatMap[A, B, DD[_,O] <: PureStream[_,O,DD]](f: O => PureStream[A, B, DD]): Broadcaster[I,B] = new Broadcaster[I,B]{
 
-//  override def flatMap[B,DD[_,O] <: PureStream[_,O,DD]](f: O => PureStream[O,B,DD]): Broadcaster[O,B] = new Broadcaster[O,B]{
-//
-//    val localDelegator: Delegator[O] = parent.delegator.noop
-//
-//    localDelegator.map(f).foreach{
-//      case delegator: Delegator[B] => delegator.foreach{ b => this.delegator.dispatch(b) }
-//      case reporter: Reporter[O,B] => localDelegator.foreach{ o => reporter.dispatch(o).foreach{ b => this.delegator.dispatch(b) } }
-//      case broadcaster: Broadcaster[O,B] =>
-//        localDelegator.foreach{ o => broadcaster.dispatch(o).foreach{ b => this.delegator.dispatch(b) } }
-//        broadcaster.foreach{ b => this.delegator.dispatch(b) }
-//    }
-//
-//    override def dispatch(data: O): Option[B] = {
-//      localDelegator.dispatch(data)
-//      None
-//    }
-//  }
+    var dataCapture: Option[B] = None
 
-  override def flatMap[B,DD[_,O] <: PureStream[_,O,DD]](f: O => PureStream[I,B,DD]): Broadcaster[I,B] = new Broadcaster[I,B]{
-
-    parent.delegator.map(o => o -> f(o)).foreach{
-      case (o, delegator: Delegator[B]) => delegator.foreach{ b => this.delegator.dispatch(b) }
-      case (o, broadcaster: Broadcaster[O,B]) => broadcaster.foreach{ b => this.delegator.dispatch(b) }
-      case (o, reporter: Reporter[O,B]) => reporter.dispatch(o).foreach{ b => this.delegator.dispatch(b) }
+    parent.delegator.map(f).foreach{ pureStream =>
+      pureStream.foreach{ b =>
+        dataCapture = Some(b)
+        this.delegator.dispatch(b)
+      }
     }
 
     override def dispatch(data: I): Option[B] = {
+      dataCapture = None
       parent.dispatch(data)
-      None
+      dataCapture
     }
   }
 

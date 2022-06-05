@@ -33,12 +33,32 @@ class ReporterTest extends AnyWordSpec {
       assertResult(List(("Foo",0),("Bar",1),("Baz",2))){
         List("Foo", "Bar", "Baz").flatMap(stringReporter.zipWithIndex.dispatch)
       }
-      assertResult(Some(42)){
-        stringReporter.flatMap(_ => Report[String].map(_.toInt)).dispatch("42")
+      assertResult(0){
+        var result = 0
+        val x = Delegator[Int]
+        stringReporter.flatMap(string => x).tapEach(int => result += int)
+        result
       }
-//      assertResult(Some(42)){
-//        stringReporter.map(_ => Report[String].map(_.toInt)).flatten.dispatch("42")
-//      }
+      assertResult(6){
+        var result = 0
+        val x = Delegator[Int]
+        stringReporter.flatMap(string => x).tapEach(int => result += int).dispatch("foo")
+        for(i <- 1 to 3) x.dispatch(i)
+        result
+      }
+      assertResult(0){
+        var result = 0
+        val x = Delegator[Int]
+        stringReporter.map(string => x).flatten.tapEach(int => result += int)
+        result
+      }
+      assertResult(6){
+        var result = 0
+        val x = Delegator[Int]
+        stringReporter.map(string => x).flatten.tapEach(int => result += int).dispatch("foo")
+        for(i <- 1 to 3) x.dispatch(i)
+        result
+      }
       assertResult(Some("Foo")){
         stringReporter.take(5).dispatch("Foo")
       }
@@ -192,7 +212,7 @@ class ReporterTest extends AnyWordSpec {
       c.run(500,50)
       d.run(500,500)
       root.flatMap(_ => root).run(500,500)
-//      root.map(_ => root).flatten.run(500,500)
+      root.map(_ => root).flatten.run(500,500)
 
       val newRoot = Report[Int]
       newRoot.prepended(root).run(500,500)

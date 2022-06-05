@@ -5,22 +5,35 @@ import combinator.PureStream
 
 abstract class Reporter[I,O] extends EventStream[I,O,Reporter] { parent =>
 
-  override def prepended[B,DD[_,O] <: EventStream[_,O,DD]](other: EventStream[B,I,DD]): Reporter[B,O] =
-    (data: B) => other.dispatch(data)
-      .flatMap(parent.dispatch)
+
+  final override def dispatch(data: I): Option[O] = dispatch(this, data)
 
 
-  override def appended[B,DD[_,O] <: EventStream[_,O,DD]](other: EventStream[O,B,DD]): Reporter[I,B] =
-    (data: I) => parent.dispatch(data)
-      .flatMap(other.dispatch)
+  protected def dispatch[O1](caller: Reporter[I,O1], data: I): Option[O]
 
 
-  override def scanLeft[B](z: B)(op: (B,O) => B): Reporter[I,B] = (data: I) => parent.dispatch(data)
-    .map { o => op(z, o) }
+  override def prepended[B,DD[_,O] <: EventStream[_,O,DD]](other: EventStream[B,I,DD]): Reporter[B,O] = new Reporter[B,O]{
+    override protected def dispatch[O1](caller: Reporter[B, O1], data: B): Option[O] = other match
+      case other: Reporter[B,I] => other.dispatch(caller, data).flatMap(data => parent.dispatch(parent, data))
+      case other => other.dispatch(data).flatMap(parent.dispatch)
+  }
 
 
-  override def filter(pred: O => Boolean): Reporter[I,O] = (data: I) => parent.dispatch(data)
-    .filter(pred)
+  override def appended[B,DD[_,O] <: EventStream[_,O,DD]](other: EventStream[O,B,DD]): Reporter[I,B] = new Reporter[I,B]{
+    override protected def dispatch[O1](caller: Reporter[I, O1], data: I): Option[B] = other match
+      case other: Reporter[O,B] => parent.dispatch(caller, data).flatMap(data => other.dispatch(other, data))
+      case other => parent.dispatch(caller, data).flatMap(data => other.dispatch(data))
+  }
+
+
+  override def scanLeft[B](z: B)(op: (B,O) => B): Reporter[I,B] = new Reporter[I,B]:
+    override protected def dispatch[O1](caller: Reporter[I, O1], data: I): Option[B] = parent.dispatch(caller, data)
+      .map { o => op(z, o) }
+
+
+  override def filter(pred: O => Boolean): Reporter[I,O] = new Reporter[I,O]:
+    override protected def dispatch[O1](caller: Reporter[I, O1], data: I): Option[O] = parent.dispatch(caller, data)
+      .filter(pred)
 
 
   override def filterNot(pred: O => Boolean): Reporter[I,O] = filter(pred.andThen(!_))
@@ -28,63 +41,72 @@ abstract class Reporter[I,O] extends EventStream[I,O,Reporter] { parent =>
 
   override def take(n: Int): Reporter[I,O] = new Reporter[I,O] {
     var i: Int = -1
-    override def dispatch(data: I): Option[O] = parent.dispatch(data)
+    override protected def dispatch[O1](caller: Reporter[I, O1], data: I): Option[O] = parent.dispatch(caller, data)
       .filter { _ => i += 1; i < n }
   }
 
 
   override def takeWhile(p: O => Boolean): Reporter[I,O] = new Reporter[I,O] {
     var flag: Boolean = true
-    override def dispatch(data: I): Option[O] = parent.dispatch(data)
+    override protected def dispatch[O1](caller: Reporter[I, O1], data: I): Option[O] = parent.dispatch(caller, data)
       .filter{ o => if flag then flag = p(o); flag }
   }
 
 
   override def drop(n: Int): Reporter[I,O] = new Reporter[I,O] {
     var i: Int = -1
-    override def dispatch(data: I): Option[O] = parent.dispatch(data)
+    override protected def dispatch[O1](caller: Reporter[I, O1], data: I): Option[O] = parent.dispatch(caller, data)
       .filterNot { _ => i += 1; i < n }
   }
 
 
   override def dropWhile(p: O => Boolean): Reporter[I,O] = new Reporter[I,O] {
     var flag: Boolean = true
-    override def dispatch(data: I): Option[O] = parent.dispatch(data)
+    override protected def dispatch[O1](caller: Reporter[I, O1], data: I): Option[O] = parent.dispatch(caller, data)
       .filterNot{ o => if flag then flag = p(o); flag }
   }
 
 
   override def slice(from: Int, until: Int): Reporter[I,O] = new Reporter[I,O] {
     var i: Int = -1
-    override def dispatch(data: I): Option[O] = parent.dispatch(data)
+    override protected def dispatch[O1](caller: Reporter[I, O1], data: I): Option[O] = parent.dispatch(caller, data)
       .filter{ _ => i += 1; i >= from && i < until }
   }
 
 
-  override def map[B](f: O => B): Reporter[I,B] = (data: I) => parent.dispatch(data)
-    .map(f)
+  override def map[B](f: O => B): Reporter[I,B] = new Reporter[I,B]:
+    override protected def dispatch[O1](caller: Reporter[I, O1], data: I): Option[B] = parent.dispatch(caller, data)
+      .map(f)
 
 
-  //TODO remove reflective call.
-  override def flatMap[B,DD[_,O] <: PureStream[_,O,DD]](f: O => PureStream[I,B,DD]): Reporter[I,B] = new Reporter[I,B]{
+  def flatMap[A, B, DD[_, O] <: PureStream[_, O, DD]](f: O => PureStream[A, B, DD]): Reporter[I,B] = new Reporter[I,B]{
+    var dataCapture: Option[B] = None
 
-    val relay: Reporter[I, O] = parent.tapEach{ o =>
-      f(o).foreach{ b =>
-        
-      }
-    }
+    override protected def dispatch[O1](caller: Reporter[I, O1], data: I): Option[B] = dataCapture match
+      case Some(_) =>
+        val temp = dataCapture
+        dataCapture = None
+        temp
 
-    override def dispatch(data: I): Option[B] = relay.dispatch(data)
+      case None =>
+        parent.dispatch(data).foreach{ o =>
+          f(o).foreach { b =>
+            dataCapture = Some(b)
+            caller.dispatch(data)
+          }
+        }
+        dataCapture
   }
 
 
-  override def collect[B](pf: O ~> B): Reporter[I,B] = (data: I) => parent.dispatch(data)
-    .collect(pf)
+  override def collect[B](pf: O ~> B): Reporter[I,B] = new Reporter[I,B]{
+    override protected def dispatch[O1](caller: Reporter[I, O1], data: I): Option[B] = parent.dispatch(caller, data).collect(pf)
+  }
 
 
   override def zipWithIndex: Reporter[I,(O,Int)] = new Reporter[I,(O,Int)] {
     var i: Int = -1
-    override def dispatch(data: I): Option[(O,Int)] = parent.dispatch(data)
+    override protected def dispatch[O1](caller: Reporter[I, O1], data: I): Option[(O, Int)] = parent.dispatch(caller, data)
       .zip{i += 1; Some(i)}
   }
 
@@ -92,11 +114,15 @@ abstract class Reporter[I,O] extends EventStream[I,O,Reporter] { parent =>
   override def span(p: O => Boolean): (Reporter[I,O], Reporter[I,O]) = {
     var flag = true
 
-    val left: Reporter[I,O] = (data: I) => parent.dispatch(data)
-      .filter { o => if flag then flag = p(o); flag }
+    val left: Reporter[I,O] = new Reporter[I,O]{
+      override protected def dispatch[O1](caller: Reporter[I, O1], data: I): Option[O] = parent.dispatch(caller, data)
+        .filter { o => if flag then flag = p(o); flag }
+    }
 
-    val right: Reporter[I,O] = (data: I) => parent.dispatch(data)
-      .filterNot { o => flag }
+    val right: Reporter[I,O] = new Reporter[I,O]{
+      override protected def dispatch[O1](caller: Reporter[I, O1], data: I): Option[O] = parent.dispatch(caller, data)
+        .filterNot { o => flag }
+    }
 
     left -> right
   }
@@ -105,19 +131,25 @@ abstract class Reporter[I,O] extends EventStream[I,O,Reporter] { parent =>
   override def splitAt(n: Int): (Reporter[I,O], Reporter[I,O]) = {
     var i = -1
 
-    val left: Reporter[I,O] = (data: I) => parent.dispatch(data)
-      .filter { o => i += 1; i < n }
+    val left: Reporter[I,O] = new Reporter[I,O]{
+      override protected def dispatch[O1](caller: Reporter[I, O1], data: I): Option[O] = parent.dispatch(caller, data)
+        .filter { o => i += 1; i < n }
+    }
 
-    val right: Reporter[I,O] = (data: I) => parent.dispatch(data)
-      .filterNot { o => i < n }
+    val right: Reporter[I,O] = new Reporter[I,O]{
+      override protected def dispatch[O1](caller: Reporter[I, O1], data: I): Option[O] = parent.dispatch(caller, data)
+        .filterNot { o => i < n }
+    }
 
     left -> right
   }
 
 
-  override def tapEach[U](f: O => U): Reporter[I,O] = (data: I) => parent.dispatch(data)
-    .tapEach(o => f(o))
-    .lastOption
+  override def tapEach[U](f: O => U): Reporter[I,O] = new Reporter[I,O]{
+    override protected def dispatch[O1](caller: Reporter[I, O1], data: I): Option[O] = parent.dispatch(caller, data)
+      .tapEach(o => f(o))
+      .lastOption
+  }
 
 
   override def foreach(f: O => Unit): Unit = tapEach(f)
@@ -126,7 +158,9 @@ abstract class Reporter[I,O] extends EventStream[I,O,Reporter] { parent =>
 }
 object Reporter{
 
-  def apply[O]: Reporter[O,O] = (data: O) => Some(data)
+  def apply[O]: Reporter[O,O] = new Reporter[O,O]{
+    override protected def dispatch[O1](caller: Reporter[O, O1], data: O): Option[O] = Some(data)
+  }
 
 }
 
