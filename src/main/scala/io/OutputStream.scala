@@ -1,22 +1,14 @@
 package io
 
+import combinator.PureStream
 import event.Reporter
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Future
 
-trait OutputStream[O] extends Reporter[O,O] with Output[O] { underlying =>
+trait OutputStream[O,CC[O] <: OutputStream[O,CC]] extends Output[O] with PureStream[O,O,[_,X] =>> CC[X]] {
 
-  override def fireEvent(data: O): Option[O]
 
-  override def apply(v1: O): Unit = fireEvent(v1)
-
-  override def close(): Unit
-
-}
-object OutputStream{
-
-  def apply[T]: OutputStream[T] = ???
 
 }
