@@ -220,8 +220,19 @@ class BroadcasterTest extends AnyWordSpec {
       val (c,d) = root.span(i => i < 50 || i > 100)
       c.run(500,50)
       d.run(500,500)
-      root.flatMap(_ => root).run(500,500)
-      root.map(_ => root).flatten.run(500,500)
+
+      val otherBroadcaster = Broadcast[Int]
+      var block = false
+      root.flatMap(_ => otherBroadcaster).filterNot(_ => block).tapEach(i => counter += i).dispatch(0)
+      for(i <- 1 to 250) otherBroadcaster.dispatch(i)
+      def increasingNaturalsSum(n: Int): Int = (n*(n+1))/2
+      expected += increasingNaturalsSum(250)
+
+      root.map(_ => otherBroadcaster).flatten.drop(500).tapEach(i => counter += i).dispatch(0)
+      block = true
+      for(i <- 1 to 750) otherBroadcaster.dispatch(i)
+      expected += increasingNaturalsSum(750) - increasingNaturalsSum(500)
+      
 
       val newRoot = Broadcast[Int]
       newRoot.prepended(root).run(500,500)
