@@ -1,6 +1,6 @@
 package event
 
-import event.{Delegate, Delegator, EventStream, Report, Reporter}
+import event.{Delegator, EventStream, Reporter}
 import org.scalatest.wordspec.AnyWordSpec
 
 import java.lang.reflect.Field
@@ -12,17 +12,17 @@ class DelegatorTest extends AnyWordSpec {
   "A delegator" should {
     "always return it's applied argument" when {
       "unconstrained" in {
-        val delegator: Delegator[String] = Delegate[String]
+        val delegator: Delegator[String] = Delegator[String]
         assert(delegator.dispatch("Hello").contains("Hello"))
       }
       "constrained" in {
-        val delegator: Delegator[String] = Delegate[String]
+        val delegator: Delegator[String] = Delegator[String]
         assert(delegator.filter(_ => false).dispatch("Hello").contains("Hello"))
       }
     }
 
     "not relay upwards" in {
-      val delegator: Delegator[String] = Delegate[String]
+      val delegator: Delegator[String] = Delegator[String]
       delegator
         .tapEach(_.ensuring(false))
         .map(_.ensuring(false))
@@ -33,7 +33,7 @@ class DelegatorTest extends AnyWordSpec {
     }
 
     "relay downwards" in {
-      val root: Delegator[Int] = Delegate[Int]
+      val root: Delegator[Int] = Delegator[Int]
       val child = root.map(_.ensuring(false))
 
       val counter = new Array[Int](5)
@@ -51,7 +51,7 @@ class DelegatorTest extends AnyWordSpec {
     }
 
     "methods behaviour meets expectations" in {
-      val root: Delegator[Int] = Delegate[Int]
+      val root: Delegator[Int] = Delegator[Int]
 
       var counter = 0
       var expected = 0
@@ -95,7 +95,7 @@ class DelegatorTest extends AnyWordSpec {
       root.flatMap(_ => root).increment(((iter*iter)/2) - iter/2)
       root.map(_ => root).flatten.increment(((iter*iter)/2) - iter/2)
 
-      val newRoot = Delegate[Int]
+      val newRoot = Delegator[Int]
       newRoot.prepended(root).increment(iter)
       root.appended(newRoot)
       newRoot.increment(iter)
@@ -109,7 +109,7 @@ class DelegatorTest extends AnyWordSpec {
     "qualify for garbage collection once exhausted" in {
 
       // Created anonymous instance
-      val delegator: Delegator[Int] = Delegate[Int]
+      val delegator: Delegator[Int] = Delegator[Int]
       println(classOf[Delegator[Int]])
 
       // Get protected relays variable through reflection.

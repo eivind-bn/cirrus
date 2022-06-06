@@ -14,7 +14,7 @@ class BroadcasterTest extends AnyWordSpec {
     "always optionally return a processed argument" when {
       "non-exhausted" in {
 
-        val broadcaster = Broadcast[String]
+        val broadcaster = Broadcaster[String]
 
         assertResult(Some(foo)){
           broadcaster.dispatch(foo)
@@ -93,7 +93,7 @@ class BroadcasterTest extends AnyWordSpec {
 
       }
       "exhausted" in {
-        val broadcaster = Broadcast[String]
+        val broadcaster = Broadcaster[String]
 
         assertResult(None){
           broadcaster.filter(_ => false).dispatch(foo)
@@ -120,27 +120,27 @@ class BroadcasterTest extends AnyWordSpec {
           List(foo,bar,baz).flatMap(broadcaster.collect{ case s if s == baz => s.toUpperCase }.dispatch)
         }
         assertResult((0 until 30) -> (0 to 50)){
-          val (a,b) = Broadcast[Int].splitAt(30)
+          val (a,b) = Broadcaster[Int].splitAt(30)
           (0 to 50).flatMap(a.dispatch) -> (0 to 50).flatMap(b.dispatch)
         }
         assertResult((0 until 20) -> (0 to 50)){
-          val (a,b) = Broadcast[Int].span(int => int < 20 || int > 30)
+          val (a,b) = Broadcaster[Int].span(int => int < 20 || int > 30)
           (0 to 50).flatMap(a.dispatch) -> (0 to 50).flatMap(b.dispatch)
         }
         assertResult(List(foo) -> List(foo,baz)){
-          val otherBroadcaster = Report[String].filter(s => s == foo || s == baz)
+          val otherBroadcaster = Reporter[String].filter(s => s == foo || s == baz)
           List(foo,bar,baz).flatMap(broadcaster.filter(_ == foo).prepended(otherBroadcaster).dispatch) ->
             List(foo,bar,baz).flatMap(otherBroadcaster.dispatch)
         }
         assertResult(List(foo) -> List(foo,baz)){
-          val otherBroadcaster = Report[String].filter(s => s == foo || s == baz)
+          val otherBroadcaster = Reporter[String].filter(s => s == foo || s == baz)
           List(foo,bar,baz).flatMap(broadcaster.filter(_ == foo).appended(otherBroadcaster).dispatch) ->
             List(foo,bar,baz).flatMap(otherBroadcaster.dispatch)
         }
       }
 
       "Share traits from both delegate and report. Events should propagate on the entire event graph" in {
-        val broadcast = Broadcast[String]
+        val broadcast = Broadcaster[String]
         var counter = 0
 
         broadcast.tapEach(_ => counter += 1)
@@ -175,7 +175,7 @@ class BroadcasterTest extends AnyWordSpec {
     }
 
     "methods behaviour meets expectations" in {
-      val root = Broadcast[Int]
+      val root = Broadcaster[Int]
 
       var counter = 0
       var expected = 0
@@ -221,7 +221,7 @@ class BroadcasterTest extends AnyWordSpec {
       c.run(500,50)
       d.run(500,500)
 
-      val otherBroadcaster = Broadcast[Int]
+      val otherBroadcaster = Broadcaster[Int]
       var block = false
       root.flatMap(_ => otherBroadcaster).filterNot(_ => block).tapEach(i => counter += i).dispatch(0)
       for(i <- 1 to 250) otherBroadcaster.dispatch(i)
@@ -232,9 +232,9 @@ class BroadcasterTest extends AnyWordSpec {
       block = true
       for(i <- 1 to 750) otherBroadcaster.dispatch(i)
       expected += increasingNaturalsSum(750) - increasingNaturalsSum(500)
-      
 
-      val newRoot = Broadcast[Int]
+
+      val newRoot = Broadcaster[Int]
       newRoot.prepended(root).run(500,500)
       root.appended(newRoot)
       newRoot.run(500,500)

@@ -9,8 +9,8 @@ class ReporterTest extends AnyWordSpec {
 
     "return some processed output when prior reporters are non-exhausted" in {
 
-      val stringReporter = Report[String]
-      val intReporter = Report[Int]
+      val stringReporter = Reporter[String]
+      val intReporter = Reporter[Int]
 
       assertResult(Some("Foo")){
         stringReporter.dispatch("Foo")
@@ -84,7 +84,7 @@ class ReporterTest extends AnyWordSpec {
 
     "return none when exhausted by some composed reporter" in {
 
-      val reporter = Report[String]
+      val reporter = Reporter[String]
 
       assertResult(List("Foo","Baz")){
         List("Foo","Bar","Baz").flatMap(reporter.filterNot(_ == "Bar").dispatch)
@@ -116,27 +116,27 @@ class ReporterTest extends AnyWordSpec {
         List("Foo","Bar","Baz").flatMap(a.dispatch) -> List("Foo","Bar","Baz").flatMap(b.dispatch)
       }
       assertResult((0 until 30) -> (0 to 50)){
-        val (a,b) = Report[Int].splitAt(30)
+        val (a,b) = Reporter[Int].splitAt(30)
         (0 to 50).flatMap(a.dispatch) -> (0 to 50).flatMap(b.dispatch)
       }
       assertResult((0 until 20) -> (0 to 50)){
-        val (a,b) = Report[Int].span(int => int < 20 || int > 30)
+        val (a,b) = Reporter[Int].span(int => int < 20 || int > 30)
         (0 to 50).flatMap(a.dispatch) -> (0 to 50).flatMap(b.dispatch)
       }
       assertResult(List("Foo") -> List("Foo","Baz")){
-        val otherReporter = Report[String].filter(s => s == "Foo" || s == "Baz")
+        val otherReporter = Reporter[String].filter(s => s == "Foo" || s == "Baz")
         List("Foo","Bar","Baz").flatMap(reporter.filter(_ == "Foo").prepended(otherReporter).dispatch) ->
           List("Foo","Bar","Baz").flatMap(otherReporter.dispatch)
       }
       assertResult(List("Foo") -> List("Foo","Baz")){
-        val otherReporter = Report[String].filter(s => s == "Foo" || s == "Baz")
+        val otherReporter = Reporter[String].filter(s => s == "Foo" || s == "Baz")
         List("Foo","Bar","Baz").flatMap(reporter.filter(_ == "Foo").appended(otherReporter).dispatch) ->
           List("Foo","Bar","Baz").flatMap(otherReporter.dispatch)
       }
     }
 
     "Be fully immutable. Not relay events to other branches." in {
-      val reporter = Report[String]
+      val reporter = Reporter[String]
 
       //Other branches not affected unless fired upon.
       reporter.tapEach(_ => fail())
@@ -169,7 +169,7 @@ class ReporterTest extends AnyWordSpec {
     }
 
     "methods behaviour meets expectations" in {
-      val root = Report[Int]
+      val root = Reporter[Int]
 
       var counter = 0
       var expected = 0
@@ -214,7 +214,7 @@ class ReporterTest extends AnyWordSpec {
       root.flatMap(_ => root).run(500,500)
       root.map(_ => root).flatten.run(500,500)
 
-      val newRoot = Report[Int]
+      val newRoot = Reporter[Int]
       newRoot.prepended(root).run(500,500)
       root.appended(newRoot)
       newRoot.run(500,500)
