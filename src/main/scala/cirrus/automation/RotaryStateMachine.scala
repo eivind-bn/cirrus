@@ -1,33 +1,34 @@
-package automation
+package cirrus.automation
 
-import combinator.{ImpureStream, PureStream}
-import event.*
+import cirrus.automation.RotaryStateMachine.Dispatcher
+import cirrus.combinator.EventStream
+import cirrus.event.{Broadcaster, EventTree, Reporter}
 
-trait RotaryStateMachine[I,O,CC[I,O] <: EventStream[I,O,CC]] extends StateMachine[I,O,CC] { parent =>
+trait RotaryStateMachine[X,Y] extends StateMachine[X,Y,RotaryStateMachine] { parent =>
 
-  export eventLoop.dispatch
-  protected val eventLoop: CC[I,O]
+  protected val dispatcher: EventTree.Dispatcher[X,Y]
 
-  trait Tail[I1,O1,S] extends RotaryStateMachine[I1,O1,CC]{
+  trait Relay[Z,S] extends RotaryStateMachine[X,Z]{
+
+
+    override protected val dispatcher: EventTree.Dispatcher[X, Z] = ???
+
     def initialState: S
     protected var state: S = initialState
     def reset(): Unit = this.state = initialState
   }
 
 
-  def prepended[B, DD[_, O] <: EventStream[_, O, DD]](other: EventStream[B, I, DD]): RotaryStateMachine[B,O,CC] = new RotaryStateMachine[B,O,CC] {
-    override protected val eventLoop: CC[B, O] = parent.eventLoop.prepended(other)
-  }
+  override def dispatch(data: X): Option[Y] = ???
+
+  def prepended[B,DD[_,O] <: EventStream[_,O,DD]](other: EventStream[B,X,DD]): RotaryStateMachine[B,Y]
 
 
-  def appended[B,DD[_,O] <: EventStream[_,O,DD]](other: EventStream[O,B,DD]): RotaryStateMachine[I,B,CC] = new RotaryStateMachine[I,B,CC] {
-    override protected val eventLoop: CC[I, B] = parent.eventLoop.appended(other)
-  }
+  def appended[B,DD[_,O] <: EventStream[_,O,DD]](other: EventStream[Y,B,DD]): RotaryStateMachine[X,B]
 
-
-  override def map[B,S](initState: S)(f: (S, O) ~> (S, B)): RotaryStateMachine[I,B,CC] = new Tail[I,B,S] {
+  override def map[B,S](initState: S)(f: (S, Y) ~> (S, B)): RotaryStateMachine[X,B] = new Relay[X,B,S] {
     override def initialState: S = initState
-    override protected val eventLoop: CC[I, B] = parent.eventLoop ~ Report[O]
+    override protected val dispatcher: parent.Dispatcher[X, B] = parent.dispatcher ~ Reporter[Y]
       .map{ o => f.unapply(this.state -> o).toLeft(f.unapply(this.initialState -> o)) }
       .map{
 
@@ -47,10 +48,10 @@ trait RotaryStateMachine[I,O,CC[I,O] <: EventStream[I,O,CC]] extends StateMachin
       .collect{ case Some(value) => value }
   }
 
-  override def stackMap[B,S](initState: S)(f: (S, O) ~> (S, B)): RotaryStateMachine[I,Seq[B],CC] = new Tail[I,Seq[B],S] {
+  override def stackMap[B,S](initState: S)(f: (S, Y) ~> (S, B)): RotaryStateMachine[X,Seq[B]] = new Relay[X,Seq[B],S] {
     var buffer: Seq[B] = Seq.empty
     override def initialState: S = initState
-    override protected val eventLoop: CC[I, Seq[B]] = parent.eventLoop ~ Report[O]
+    override protected val dispatcher: parent.Dispatcher[X, Seq[B]] = parent.dispatcher ~ Reporter[Y]
       .map{ o => f.unapply(this.state -> o).toLeft(f.unapply(this.initialState -> o)) }
       .map {
 
@@ -74,9 +75,9 @@ trait RotaryStateMachine[I,O,CC[I,O] <: EventStream[I,O,CC]] extends StateMachin
   }
 
 
-  override def tapEach[U,S](initState: S)(f: (S, O) ~> (S, U)): RotaryStateMachine[I,O,CC] = new Tail[I,O,S] {
+  override def tapEach[U,S](initState: S)(f: (S, Y) ~> (S, U)): RotaryStateMachine[X,Y] = new Relay[X,Y,S] {
     override def initialState: S = initState
-    override protected val eventLoop: CC[I, O] = parent.eventLoop ~ Report[O]
+    override protected val dispatcher: parent.Dispatcher[X, Y] = parent.dispatcher ~ Reporter[Y]
       .map{ o => f.unapply(this.state -> o).toLeft(f.unapply(this.initialState -> o)) match {
 
           case Left((newState, output)) =>
@@ -95,23 +96,10 @@ trait RotaryStateMachine[I,O,CC[I,O] <: EventStream[I,O,CC]] extends StateMachin
       .collect{ case Some(value) => value }
   }
 
-
-  override def foreach(f: O => Unit): Unit = eventLoop.foreach(f)
-
+  override def foreach(f: Y => Unit): Unit = ???
 }
 object RotaryStateMachine{
 
-  def broadcast[O]: RotaryStateMachine[O,O,Broadcaster] = new RotaryStateMachine[O,O,Broadcaster] {
-    override protected val eventLoop: Broadcaster[O, O] = Broadcast[O]
-  }
 
-  def report[O]: RotaryStateMachine[O,O,Reporter] = new RotaryStateMachine[O,O,Reporter] {
-    override protected val eventLoop: Reporter[O, O] = Report[O]
-  }
-
-  //TODO fix generic constraint issue.
-//  def delegate[O]: RotaryStateMachine[O,O,[_,X] =>> Delegator[X]] = new RotaryStateMachine[O,O,[_,X] =>> Delegator[X]] {
-//    override protected val eventLoop: Delegator[O] = Delegate[O]
-//  }
 
 }

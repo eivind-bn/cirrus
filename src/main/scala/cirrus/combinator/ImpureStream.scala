@@ -1,6 +1,6 @@
 package cirrus.combinator
 
-trait ImpureStream[I,O,CC[I,O] <: ImpureStream[I,O,CC]] extends Stream[I,O,CC] { impure =>
+trait ImpureStream[I,O,CC[_,O] <: ImpureStream[_,O,CC]] extends Stream[I,O,CC] { impure =>
 
   def map[B,S](initState: S)(f: (S, O) ~> (S, B)): CC[I, B]
 

@@ -1,9 +1,8 @@
 package cirrus.event
 
-import cirrus.event.EventStream
-import cirrus.combinator.PureStream
+import cirrus.combinator.{EventStream, PureStream}
 
-abstract class Broadcaster[I,O] extends EventStream[I,O,Broadcaster] { parent =>
+abstract class Broadcaster[I,O] extends EventTree[I,O,Broadcaster] { parent =>
 
 
   protected val delegator: Delegator[O] = new Delegator[O]

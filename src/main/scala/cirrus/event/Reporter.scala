@@ -1,9 +1,9 @@
 package cirrus.event
 
-import cirrus.combinator.PureStream
+import cirrus.combinator.{EventStream, PureStream}
 
 
-abstract class Reporter[I,O] extends EventStream[I,O,Reporter] { parent =>
+abstract class Reporter[I,O] extends EventTree[I,O,Reporter] { parent =>
 
 
   final override def dispatch(data: I): Option[O] = dispatch(this, data)

@@ -1,8 +1,8 @@
-package cirrus.event
+package cirrus.combinator
 
 import cirrus.combinator.PureStream
 
-trait EventStream[I,O,CC[_,O] <: EventStream[_,O,CC]] extends PureStream[I,O,CC] {
+trait EventStream[I,O,CC[_,O] <: EventStream[_,O,CC]] extends Stream[I,O,CC] {
 
 
   def dispatch(data: I): Option[O]

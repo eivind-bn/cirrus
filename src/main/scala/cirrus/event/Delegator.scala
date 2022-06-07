@@ -1,9 +1,9 @@
 package cirrus.event
 
-import cirrus.combinator.PureStream
+import cirrus.combinator.{EventStream, PureStream}
 
 
-class Delegator[O] extends EventStream[O,O,[_,X] =>> Delegator[X]] { delegator =>
+class Delegator[O] extends EventTree[O,O,[_,X] =>> Delegator[X]] { delegator =>
 
 
   protected var relays: List[Relay[_]] = List.empty

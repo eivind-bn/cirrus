@@ -1,7 +1,5 @@
-package automation
+package cirrus.automation
 
-import event.{Broadcaster, Delegator, EventStream, Reporter}
-import combinator.ImpureStream
+import cirrus.combinator.{EventStream, ImpureStream}
 
-trait StateMachine[I,O,CC[I,O] <: EventStream[I,O,CC]]
-  extends EventStream[I,O,[X,Y] =>> StateMachine[X,Y,CC]] with ImpureStream[I,O,[X,Y] =>> StateMachine[X,Y,CC]]
+trait StateMachine[X,Y,CC[_,Y] <: StateMachine[_,Y,CC]] extends EventStream[X,Y,CC] with ImpureStream[X,Y,CC]

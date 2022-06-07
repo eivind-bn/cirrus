@@ -33,8 +33,6 @@ trait PureStream[I, O, CC[_,O] <: PureStream[_,O,CC]] extends Stream[I, O, CC] {
   def splitAt(n: Int): (CC[I, O], CC[I, O])
   
   def tapEach[U](f: O => U): CC[I, O]
-  
-  def foreach(f: O => Unit): Unit
 
 }
 object PureStream{
