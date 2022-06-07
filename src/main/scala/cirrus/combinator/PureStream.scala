@@ -46,6 +46,5 @@ object PureStream{
     def flatMap[A, B, DD[_, O] <: PureStream[_, O, DD]](f: => PureStream[A, B, DD]): CC[I, B] = pureStream.flatMap(_ => f)
     def span(p: => Boolean): (CC[I, O], CC[I, O]) = pureStream.span(_ => p)
     def tapEach[U](f: => U): CC[I, O] = pureStream.tapEach(_ => f)
-    def foreach(f: => Unit): Unit = pureStream.foreach(_ => f)
 
 }
