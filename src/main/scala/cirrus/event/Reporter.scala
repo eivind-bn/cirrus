@@ -1,6 +1,6 @@
 package cirrus.event
 
-import cirrus.combinator.{EventStream, PureStream}
+import cirrus.combinator.{PureStream, ModularStream}
 
 
 abstract class Reporter[I,O] extends EventTree[I,O,Reporter] { parent =>
@@ -12,14 +12,14 @@ abstract class Reporter[I,O] extends EventTree[I,O,Reporter] { parent =>
   protected def dispatch[O1](caller: Reporter[I,O1], data: I): Option[O]
 
 
-  override def prepended[B,DD[_,O] <: EventStream[_,O,DD]](other: EventStream[B,I,DD]): Reporter[B,O] = new Reporter[B,O]{
+  override def prepended[B,DD[_,O] <: ModularStream[_,O,DD]](other: ModularStream[B,I,DD]): Reporter[B,O] = new Reporter[B,O]{
     override protected def dispatch[O1](caller: Reporter[B, O1], data: B): Option[O] = other match
       case other: Reporter[B,I] => other.dispatch(caller, data).flatMap(data => parent.dispatch(parent, data))
       case other => other.dispatch(data).flatMap(parent.dispatch)
   }
 
 
-  override def appended[B,DD[_,O] <: EventStream[_,O,DD]](other: EventStream[O,B,DD]): Reporter[I,B] = new Reporter[I,B]{
+  override def appended[B,DD[_,O] <: ModularStream[_,O,DD]](other: ModularStream[O,B,DD]): Reporter[I,B] = new Reporter[I,B]{
     override protected def dispatch[O1](caller: Reporter[I, O1], data: I): Option[B] = other match
       case other: Reporter[O,B] => parent.dispatch(caller, data).flatMap(data => other.dispatch(other, data))
       case other => parent.dispatch(caller, data).flatMap(data => other.dispatch(data))
@@ -156,11 +156,9 @@ abstract class Reporter[I,O] extends EventTree[I,O,Reporter] { parent =>
 
 
 }
-object Reporter extends EventStream.Factory[Reporter]{
+object Reporter extends EventTree.Factory[Reporter]{
 
   override def apply[T]: Reporter[T, T] = new Reporter[T,T]:
     override protected def dispatch[O1](caller: Reporter[T, O1], data: T): Option[T] = Some(data)
 
 }
-
-

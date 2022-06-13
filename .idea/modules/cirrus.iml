@@ -10,7 +10,6 @@
       <excludeFolder url="file://$MODULE_DIR$/../../target" />
       <excludeFolder url="file://$MODULE_DIR$/../../project/target" />
       <excludeFolder url="file://$MODULE_DIR$/../../src/main/scala/cirrus/protocol" />
-      <excludeFolder url="file://$MODULE_DIR$/../../src/main/scala/cirrus/automation" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

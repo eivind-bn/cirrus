@@ -1,6 +1,7 @@
 package cirrus.event
 
-import cirrus.combinator.{EventStream, PureStream}
+import cirrus.combinator.{ModularStream, PureStream}
+import cirrus.event.EventTree
 
 
 class Delegator[O] extends EventTree[O,O,[_,X] =>> Delegator[X]] { delegator =>
@@ -20,12 +21,12 @@ class Delegator[O] extends EventTree[O,O,[_,X] =>> Delegator[X]] { delegator =>
     Some(data)
   }
 
-  override def prepended[B,DD[_,O] <: EventStream[_,O,DD]](other: EventStream[B,O,DD]): Delegator[O] = new Delegator[O]{
+  override def prepended[B,DD[_,O] <: ModularStream[_,O,DD]](other: ModularStream[B,O,DD]): Delegator[O] = new Delegator[O]{
     other.foreach{ o => delegator.dispatch(o) }
   }
 
 
-  override def appended[B,DD[_,O] <: EventStream[_,O,DD]](other: EventStream[O,B,DD]): Delegator[B] = new Delegator[B]{
+  override def appended[B,DD[_,O] <: ModularStream[_,O,DD]](other: ModularStream[O,B,DD]): Delegator[B] = new Delegator[B]{
     delegator.foreach{ o => other.dispatch(o) }
   }
 
@@ -164,9 +165,8 @@ class Delegator[O] extends EventTree[O,O,[_,X] =>> Delegator[X]] { delegator =>
   override def foreach(f: O => Unit): Unit = tapEach(f)
 
 }
-object Delegator extends EventStream.Factory[[_,X] =>> Delegator[X]] {
+object Delegator extends EventTree.Factory[[_,X] =>> Delegator[X]] {
 
   override def apply[T]: Delegator[T] = new Delegator[T]
 
 }
-

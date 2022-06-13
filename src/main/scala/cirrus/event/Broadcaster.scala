@@ -1,6 +1,7 @@
 package cirrus.event
 
-import cirrus.combinator.{EventStream, PureStream}
+import cirrus.combinator.{ModularStream, PureStream}
+import cirrus.event
 
 abstract class Broadcaster[I,O] extends EventTree[I,O,Broadcaster] { parent =>
 
@@ -22,10 +23,10 @@ abstract class Broadcaster[I,O] extends EventTree[I,O,Broadcaster] { parent =>
     }
   }
 
-  override def prepended[B, DD[_,O] <: EventStream[_,O,DD]](other: EventStream[B,I,DD]): Broadcaster[B,O] = new Broadcaster[B,O]:
+  override def prepended[B, DD[_,O] <: ModularStream[_,O,DD]](other: ModularStream[B,I,DD]): Broadcaster[B,O] = new Broadcaster[B,O]:
     override def dispatch(data: B): Option[O] = other.dispatch(data).flatMap { i => parent.dispatch(i) }
 
-  override def appended[B,DD[_,O] <: EventStream[_,O,DD]](other: EventStream[O,B,DD]): Broadcaster[I,B] = new Broadcaster[I,B]:
+  override def appended[B,DD[_,O] <: ModularStream[_,O,DD]](other: ModularStream[O,B,DD]): Broadcaster[I,B] = new Broadcaster[I,B]:
     override def dispatch(data: I): Option[B] = parent.dispatch(data).flatMap { o => other.dispatch(o) }
 
   override def scanLeft[B](z: B)(op: (B,O) => B): Broadcaster[I,B] = new Relay[B](_.scanLeft(z)(op))
@@ -93,7 +94,7 @@ abstract class Broadcaster[I,O] extends EventTree[I,O,Broadcaster] { parent =>
   override def foreach(f: O => Unit): Unit = tapEach(f)
 
 }
-object Broadcaster extends EventStream.Factory[Broadcaster]{
+object Broadcaster extends EventTree.Factory[Broadcaster]{
 
   override def apply[T]: Broadcaster[T, T] = new Broadcaster[T,T]{
     override def dispatch(data: T): Option[T] = delegator.dispatch(data)
